@@ -1,19 +1,19 @@
+// app.js
+require('dotenv').config();           // load .env trước tiên
 var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+var express     = require('express');
+var path        = require('path');
+var cookieParser= require('cookie-parser');
+var logger      = require('morgan');
 
+// *** Chỉ cần 2 router “view” ***
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
-var ProductRouter = require('./routes/ProductRouter');
-var CartRouter = require('./routes/CartRouter')
-var CustomerRouter = require('./routes/CustomerRouter')
-var FavoriteRouter = require('./routes/FavoriteRouter')
-var OderDetailRouter = require('./routes/OderDetailRouter')
-var OrderRouter = require('./routes/OrderRouter')
-var PaymentRouter = require('./routes/PaymentRouter')
-var ReviewRouter = require('./routes/ReviewRouter')
+var apiRouter   = require('./routes/api');
+
+// *** Và 1 router duy nhất cho API CRUD ***
+var apiRouter   = require('./routes/api');
+
 var app = express();
 
 // view engine setup
@@ -28,14 +28,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/api', ProductRouter);
-app.use('/api',CartRouter)
-app.use('/api',CustomerRouter)
-app.use('/api',FavoriteRouter)
-app.use('/api',OderDetailRouter)
-app.use('/api',OrderRouter)
-app.use('/api',PaymentRouter)
-app.use('/api',ReviewRouter)
+app.use('/api', apiRouter);
+
+
+// ** Dùng duy nhất cái này **
+app.use('/api', apiRouter);
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
@@ -43,11 +41,8 @@ app.use(function(req, res, next) {
 
 // error handler
 app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
   res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  // render the error page
+  res.locals.error   = req.app.get('env') === 'development' ? err : {};
   res.status(err.status || 500);
   res.render('error');
 });
