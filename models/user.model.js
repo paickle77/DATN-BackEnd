@@ -6,7 +6,9 @@ const UserSchema = new mongoose.Schema({
   is_lock:    { type: Boolean, default: false },
   created_at: { type: Date,    default: Date.now },
   updated_at: { type: Date,    default: Date.now },
-  address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' }
+  address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },
+  passwork:   { type: String,  required: true },
+  image:      { type: String,  required: true },
 }, {
   collection: 'users',
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
