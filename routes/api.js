@@ -120,6 +120,8 @@ router.delete('/categories/:id', categoryCtrl.Delete);
 
 // ——— CRUD cho Products ———
 router.get   ('/products',     productCtrl.getList);
+router.get   ('/productscategory',     productCtrl.GetListByCategory);
+router.get   ('/productsandcategoryid',productCtrl.getProductAndCategoryName);
 router.get   ('/products/:id', productCtrl.GetOne);
 router.post  ('/products',     productCtrl.Add);
 router.put   ('/products/:id', productCtrl.Edit);

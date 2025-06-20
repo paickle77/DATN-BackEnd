@@ -21,3 +21,14 @@ module.exports.SearchByName = async (req, res) => {
     res.status(500).json({ msg: err.message });
   }
 };
+
+module.exports.getProductAndCategoryName= async (req,res)=>{
+  try{
+    const products =await Product.find()
+    .populate('category_id', 'name')
+    .exec();
+   res.json({ msg: 'OK', data: products })
+  }catch(err){
+    res.status(500).json({error: err.message});
+  }
+}
