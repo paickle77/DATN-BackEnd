@@ -19,6 +19,7 @@ const ingredientCtrl     = require('../controllers/api.ingredient.controller');
 const branchCtrl         = require('../controllers/api.branch.controller');
 const categoryCtrl       = require('../controllers/api.category.controller');
 const productCtrl        = require('../controllers/api.product.controller');
+const sizeCtrl           =require('../controllers/size.controller');
 
 // ——— CRUD cho User ———
 router.get   ('/users',        userCtrl.getList);
@@ -43,6 +44,7 @@ router.delete('/carts/:id',    cartCtrl.Delete);
 
 // ——— CRUD cho Favorites ———
 router.get   ('/favorites',     favoriteCtrl.getList);
+router.get   ('/favorites2',     favoriteCtrl.GetFavoriteandNameProduct2);
 router.get   ('/favorites/:id', favoriteCtrl.GetOne);
 router.post  ('/favorites',     favoriteCtrl.Add);
 router.put   ('/favorites/:id', favoriteCtrl.Edit);
@@ -122,6 +124,7 @@ router.delete('/categories/:id', categoryCtrl.Delete);
 router.get   ('/products',     productCtrl.getList);
 router.get   ('/productscategory',     productCtrl.GetListByCategory);
 router.get   ('/productsandcategoryid',productCtrl.getProductAndCategoryName);
+router.get   ('/productsandintergradianID',productCtrl.getProductAndIngredientName);
 router.get   ('/products/:id', productCtrl.GetOne);
 router.post  ('/products',     productCtrl.Add);
 router.put   ('/products/:id', productCtrl.Edit);
@@ -130,5 +133,14 @@ router.delete('/products/:id', productCtrl.Delete);
 // ——— Các route custom cho Product ———
 router.get('/products/categories/:id', productCtrl.GetListByCategory);
 router.get('/products/search',         productCtrl.SearchByName);
+
+
+// ——— CRUD cho sizes ———
+router.get   ('/sizes',        sizeCtrl.getList);
+router.get   ('/sizes/:id',    sizeCtrl.GetOne);
+router.post  ('/sizes',        sizeCtrl.Add);
+router.put   ('/sizes/:id',    sizeCtrl.Edit);
+router.delete('/sizes/:id',    sizeCtrl.Delete);
+
 
 module.exports = router;

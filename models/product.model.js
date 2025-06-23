@@ -10,7 +10,7 @@ const ProductSchema = new mongoose.Schema({
   is_active:      { type: Boolean, default: true },
   rating:         { type: Number, default: 0 },
   stock:          { type: Number, default: 0 },
-  ingredient_id:  { type: mongoose.Schema.Types.ObjectId, ref: 'Ingredient' },
+  ingredient_id:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ingredient' }],
   category_id:    { type: mongoose.Schema.Types.ObjectId, ref: 'Category' }
 }, {
   collection: 'products',
