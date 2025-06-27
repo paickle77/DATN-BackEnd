@@ -4,6 +4,7 @@ const UserSchema = new mongoose.Schema({
   email:      { type: String, unique: true }, // ❌ bỏ required
   phone:      { type: String }, // ❌ bỏ required
   is_lock:    { type: Boolean, default: false },
+  role:       { type: String, enum: ['user','admin'], default: 'user' },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
   address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },

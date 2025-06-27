@@ -20,6 +20,14 @@ const branchCtrl         = require('../controllers/api.branch.controller');
 const categoryCtrl       = require('../controllers/api.category.controller');
 const productCtrl        = require('../controllers/api.product.controller');
 const sizeCtrl           =require('../controllers/size.controller');
+const authCtrl           = require('../controllers/api.auth.controller');
+
+// 1️⃣ Các route public (không cần token)
+router.post('/login',    authCtrl.login);
+router.post('/register', authCtrl.register);
+
+// 2️⃣ Tất cả các route phía dưới đây đều bảo vệ bằng middleware api_auth
+router.use(mdw.api_auth);
 
 // ——— CRUD cho User ———
 router.get   ('/users',        userCtrl.getList);
