@@ -10,7 +10,12 @@ const UserSchema = new mongoose.Schema({
   address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },
   password:   { type: String }, // ❌ bỏ required
   image:      { type: String }, // ❌ bỏ required
-  isDefaul:   { type: Boolean, default: false },
+  isDefault:  { type: Boolean, default: false },
+
+   // Các trường đăng nhập mạng xã hội
+  provider:    { type: String, enum: ['local', 'google', 'facebook'], default: 'local' },
+  google_id:   { type: String, default: null },
+  facebook_id: { type: String, default: null }
 }, {
   collection: 'users',
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
