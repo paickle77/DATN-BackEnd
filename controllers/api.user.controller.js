@@ -1,8 +1,11 @@
-const Base = require('./base.controller');
 const User = require('../models/user.model');
+const bcrypt = require('bcryptjs');
+const { sendOTPEmail } = require('../utils/sendMail'); // giả sử bạn có file này
 
-// Lấy các method cơ bản từ Base controller
-const baseController = Base(User);
+// Tạo controller từ base
+const Base = require('./base.controller');
+const userController = Base(User);
+const baseController = require('./base.controller')(User);
 
 module.exports = {
     // Giữ nguyên các method cơ bản
@@ -76,3 +79,43 @@ module.exports = {
         }
     }
 };
+
+// Thêm hàm mở rộng: gửi OTP
+userController.sendOTP = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ msg: 'Email không tồn tại' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+    await user.save();
+
+    await sendOTPEmail(email, otp); // hàm gửi email bằng nodemailer
+    res.json({ msg: 'OTP đã gửi về email' });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// Thêm hàm mở rộng: reset mật khẩu
+userController.resetPassword = async (req, res) => {
+  const { otp, newPassword } = req.body;
+  try {
+    const user = await User.findOne({ otp, otpExpires: { $gt: new Date() } });
+    if (!user) return res.status(400).json({ msg: 'OTP không hợp lệ hoặc đã hết hạn' });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.otp = null;
+    user.otpExpires = null;
+    await user.save();
+
+    res.json({ msg: 'Mật khẩu đã được cập nhật' });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// Xuất toàn bộ controller
+module.exports = userController;

@@ -7,31 +7,40 @@ require('dotenv').config();
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    // DÙNG UserModel thay vì User
     const user = await UserModel.findOne({ email });
     if (!user) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
 
-    if (user.role !== 'admin') {
-      return res.status(403).json({ error: 'Chỉ admin mới được phép đăng nhập' });
-    }
-
     const token = jwt.sign(
       { _id: user._id, role: user.role },
       process.env.TOKEN_SEC_KEY,
       { expiresIn: '8h' }
     );
+
     user.token = token;
     await user.save();
 
-    res.json({ msg: 'OK', data: { token } });
+    res.json({
+      success: true,
+      message: 'Đăng nhập thành công',
+      data: {
+        token,
+        user: {
+          _id: user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        }
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Lỗi server' });
   }
 };
+
 
 exports.register = async (req, res) => {
   try {

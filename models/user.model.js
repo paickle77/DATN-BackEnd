@@ -15,7 +15,9 @@ const UserSchema = new mongoose.Schema({
    // Các trường đăng nhập mạng xã hội
   provider:    { type: String, enum: ['local', 'google', 'facebook'], default: 'local' },
   google_id:   { type: String, default: null },
-  facebook_id: { type: String, default: null }
+  facebook_id: { type: String, default: null },
+  otp:        { type: String },                        // ✅ thêm OTP
+  otpExpires: { type: Date },
 }, {
   collection: 'users',
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
