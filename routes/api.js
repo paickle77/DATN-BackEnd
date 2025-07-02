@@ -26,8 +26,8 @@ const authCtrl           = require('../controllers/api.auth.controller');
 router.post('/login',    authCtrl.login);
 router.post('/register', authCtrl.register);
 
-// 2️⃣ Tất cả các route phía dưới đây đều bảo vệ bằng middleware api_auth
-router.use(mdw.api_auth);
+// // 2️⃣ Tất cả các route phía dưới đây đều bảo vệ bằng middleware api_auth
+// router.use(mdw.api_auth);
 
 // ——— CRUD cho User ———
 router.get   ('/users',        userCtrl.getList);
@@ -81,10 +81,15 @@ router.delete('/vouchers/:id', voucherCtrl.Delete);
 
 // ——— CRUD cho Orders ———
 router.get   ('/orders',     orderCtrl.getList);
-router.get   ('/orders/:id', orderCtrl.GetOne);
+// router.get   ('/orders/:id', orderCtrl.GetOne);
 router.post  ('/orders',     orderCtrl.Add);
 router.put   ('/orders/:id', orderCtrl.Edit);
 router.delete('/orders/:id', orderCtrl.Delete);
+
+router.get('/orders/:id', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  orderCtrl.GetOne(req, res, next);
+});
 
 // ——— CRUD cho Order Details ———
 router.get   ('/orderDetails',     orderDetailCtrl.getList);
