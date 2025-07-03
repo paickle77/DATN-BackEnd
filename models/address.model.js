@@ -7,7 +7,8 @@ const AddressSchema = new mongoose.Schema({
   city:           { type: String },
   detail_address: { type: String },
   latitude:       { type: String },
-  longitude:      { type: String }
+  longitude:      { type: String },
+  isDefault:      { type: Boolean, default: false },
 }, {
   collection: 'addresses'
 });

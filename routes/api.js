@@ -27,7 +27,7 @@ router.post('/login',    authCtrl.login);
 router.post('/register', authCtrl.register);
 
 // 2️⃣ Tất cả các route phía dưới đây đều bảo vệ bằng middleware api_auth
-router.use(mdw.api_auth);
+// router.use(mdw.api_auth);
 
 // ——— CRUD cho User ———
 router.get   ('/users',        userCtrl.getList);
@@ -38,6 +38,8 @@ router.delete('/users/:id',    userCtrl.Delete);
 
 // ——— CRUD cho Addresses ———
 router.get   ('/addresses',     addressCtrl.getList);
+router.put   ('/set-default/:id',addressCtrl.setDefault);
+router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
 router.get   ('/addresses/:id', addressCtrl.GetOne);
 router.post  ('/addresses',     addressCtrl.Add);
 router.put   ('/addresses/:id', addressCtrl.Edit);
@@ -45,8 +47,9 @@ router.delete('/addresses/:id', addressCtrl.Delete);
 
 // ——— CRUD cho Carts ———
 router.get   ('/carts',        cartCtrl.getList);
+router.get   ('/GetAllCarts',  cartCtrl.GetAllCart);
 router.get   ('/carts/:id',    cartCtrl.GetOne);
-router.post  ('/carts',        cartCtrl.Add);
+router.post  ('/addtocarts',   cartCtrl.Add);
 router.put   ('/carts/:id',    cartCtrl.Edit);
 router.delete('/carts/:id',    cartCtrl.Delete);
 
