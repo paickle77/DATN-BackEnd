@@ -1,3 +1,4 @@
+// models/orderDetail.model.js
 const mongoose = require('./db');
 
 const OrderDetailSchema = new mongoose.Schema({
@@ -9,4 +10,5 @@ const OrderDetailSchema = new mongoose.Schema({
   collection: 'order_details'
 });
 
-module.exports = mongoose.model('OrderDetail', OrderDetailSchema);
+// Thêm 'order_details' làm tham số thứ ba để ép Mongoose dùng đúng collection này
+module.exports = mongoose.model('OrderDetail', OrderDetailSchema, 'order_details');
