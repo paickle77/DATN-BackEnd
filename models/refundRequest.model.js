@@ -14,10 +14,15 @@ const refundRequestSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // --- Thêm refund_amount để lưu số tiền cần hoàn ---
+  refund_amount: {
+    type: Number,
+    required: true
+  },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+    enum: ['Đang xử lý', 'Đã chấp nhận', 'Đã từ chối'],
+    default: 'Đang xử lý'
   },
   created_at: {
     type: Date,
@@ -28,6 +33,8 @@ const refundRequestSchema = new mongoose.Schema({
     ref: 'User'
   },
   processed_at: Date
+}, {
+  collection: 'refund_requests'
 });
 
-module.exports = mongoose.model('RefundRequest', refundRequestSchema, 'refund_requests');
+module.exports = mongoose.model('RefundRequest', refundRequestSchema);

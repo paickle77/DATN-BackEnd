@@ -9,7 +9,16 @@
 // module.exports = { sendSMS };
 
 
-async function sendSMS(to, body) {
-  console.log('SMS giả, tới', to, ':', body);
+// async function sendSMS(to, body) {
+//   console.log('SMS giả, tới', to, ':', body);
+// }
+// module.exports = { sendSMS };
+
+
+// utils/sms.js
+const SEND_SMS = process.env.SMS_ENABLED === 'true';
+async function sendSMS(to, msg) {
+  if (!SEND_SMS) return;
+  // logic Twilio hoặc HTTP call ở đây
 }
 module.exports = { sendSMS };

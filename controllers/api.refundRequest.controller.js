@@ -1,12 +1,11 @@
-// src/controllers/api.refundRequest.controller.js
+const Base          = require('./base.controller');
+const RefundRequest = require('../models/refundRequest.model');
+const Order         = require('../models/order.model');
+const { processRefund } = require('../utils/payment');
 
-const Base           = require('./base.controller');
-const RefundRequest  = require('../models/refundRequest.model');
-
-// 1) Khởi tạo CRUD mặc định
 const controller = Base(RefundRequest);
 
-// 2) Override LIST để populate thêm order và processed_by
+// Populate thêm order và processed_by
 controller.GetList = async (req, res) => {
   try {
     const list = await RefundRequest.find()
@@ -19,24 +18,42 @@ controller.GetList = async (req, res) => {
   }
 };
 
-// 3) Override EDIT (PUT) để cập nhật status và thông tin processed_by/processed_at
+// Xử lý cập nhật trạng thái
 controller.Edit = async (req, res) => {
   try {
     const { status } = req.body;
     const updated = await RefundRequest.findByIdAndUpdate(
       req.params.id,
-      { status, processed_by: req.user?._id, processed_at: Date.now() },
-      { new: true }
+      {
+        status,
+        processed_by: req.user?._id,
+        processed_at: Date.now()
+      },
+      { new: true, runValidators: true }
     );
-    if (!updated) return res.status(404).json({ msg: 'Yêu cầu không tồn tại', data: null });
+    if (!updated) {
+      return res.status(404).json({ msg: 'Yêu cầu không tồn tại', data: null });
+    }
+
+    // Nếu admin chấp nhận hoàn trả
+    if (status === 'Đã chấp nhận') {
+      // 1) Cập nhật order
+      await Order.findByIdAndUpdate(
+        updated.order_id,
+        { status: 'Đã trả hàng' },
+        { new: true }
+      );
+
+      // 2) Gọi payment gateway với đúng số tiền cần hoàn
+      const amount = updated.refund_amount || 0;
+      await processRefund(updated.order_id, amount);
+    }
+
     res.json({ msg: 'OK', data: updated });
   } catch (err) {
     console.error(err);
     res.status(400).json({ msg: err.message, data: null });
   }
 };
-
-// 4) (Tuỳ chọn) bạn có thể xài luôn Base Add để tạo mới, hoặc override nếu muốn kiểm tra thêm
-// controller.Add = controller.Add; // đã có sẵn
 
 module.exports = controller;
