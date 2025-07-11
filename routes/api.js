@@ -52,6 +52,8 @@ router.get   ('/carts/:id',    cartCtrl.GetOne);
 router.post  ('/addtocarts',   cartCtrl.Add);
 router.put   ('/carts/:id',    cartCtrl.Edit);
 router.delete('/carts/:id',    cartCtrl.Delete);
+// API xóa toàn bộ giỏ hàng theo user_id
+router.delete('/carts/user/:user_id', cartCtrl.DeleteCartByUser);
 
 // ——— CRUD cho Favorites ———
 router.get   ('/favorites',     favoriteCtrl.getList);
@@ -84,6 +86,7 @@ router.delete('/vouchers/:id', voucherCtrl.Delete);
 
 // ——— CRUD cho Orders ———
 router.get   ('/orders',     orderCtrl.getList);
+router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
 router.get   ('/orders/:id', orderCtrl.GetOne);
 router.post  ('/orders',     orderCtrl.Add);
 router.put   ('/orders/:id', orderCtrl.Edit);
@@ -105,6 +108,7 @@ router.delete('/payments/:id', paymentCtrl.Delete);
 
 // ——— CRUD cho Reviews ———
 router.get   ('/reviews',     reviewCtrl.getList);
+router.get   ('/GetAllReview',    reviewCtrl.GetAllReview);
 router.get   ('/reviews/:id', reviewCtrl.GetOne);
 router.post  ('/reviews',     reviewCtrl.Add);
 router.put   ('/reviews/:id', reviewCtrl.Edit);
