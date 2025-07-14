@@ -9,7 +9,6 @@ const ProductSchema = new mongoose.Schema({
   branch_id:      { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   is_active:      { type: Boolean, default: true },
   rating:         { type: Number, default: 0 },
-  stock:          { type: Number, default: 0 },
   ingredient_id:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ingredient' }],
   category_id:    { type: mongoose.Schema.Types.ObjectId, ref: 'Category' }
 }, {
