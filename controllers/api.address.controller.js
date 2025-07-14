@@ -15,8 +15,9 @@ module.exports.GetAllAddress = async (req, res) => {
     }
 }
 
+// controllers/addressController.js
 module.exports.setDefault = async (req, res) => {
- try {
+  try {
     const addressId = req.params.id;
     const targetAddress = await Address.findById(addressId);
 
@@ -26,16 +27,16 @@ module.exports.setDefault = async (req, res) => {
 
     const userId = targetAddress.user_id;
 
-    // 1. Set tất cả địa chỉ của user này về isDefault = false
+    // Set tất cả địa chỉ của user về false
     await Address.updateMany({ user_id: userId }, { isDefault: false });
 
-    // 2. Set địa chỉ này là mặc định
+    // Set địa chỉ được chọn là true
     targetAddress.isDefault = true;
     await targetAddress.save();
 
-    return res.json({ success: true, message: 'Đặt làm địa chỉ mặc định thành công' });
+    return res.json({ success: true, message: 'Đã đặt làm mặc định' });
   } catch (err) {
     console.error('❌ Lỗi:', err);
     return res.status(500).json({ success: false, message: 'Lỗi server' });
   }
-}
+};

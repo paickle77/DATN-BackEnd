@@ -21,7 +21,8 @@ const categoryCtrl       = require('../controllers/api.category.controller');
 const productCtrl        = require('../controllers/api.product.controller');
 const sizeCtrl           =require('../controllers/size.controller');
 const authCtrl           = require('../controllers/api.auth.controller');
-
+const billCtrl           = require('../controllers/api.bill.controller');
+const billdetails    = require('../controllers/api.billdetails.controller');
 // 1️⃣ Các route public (không cần token)
 router.post('/login',    authCtrl.login);
 router.post('/register', authCtrl.register);
@@ -35,6 +36,21 @@ router.get   ('/users/:id',    userCtrl.GetOne);
 router.post  ('/users',        userCtrl.Add);
 router.put   ('/users/:id',    userCtrl.Edit);
 router.delete('/users/:id',    userCtrl.Delete);
+
+// ——— CRUD cho bill ———
+router.get   ('/bills',        billCtrl.getList);
+router.get   ('/bills/:id',    billCtrl.GetOne);
+router.post  ('/bills',        billCtrl.Add);
+router.put   ('/bills/:id',    billCtrl.Edit);
+router.delete('/bills/:id',    billCtrl.Delete);
+
+// ——— CRUD cho Bill Details ———
+router.get   ('/billdetails',     billdetails.getList);
+router.get   ('/billdetails/:id', billdetails.GetOne);
+router.post  ('/billdetails',     billdetails.Add);
+router.put   ('/billdetails/:id', billdetails.Edit);
+router.delete('/billdetails/:id', billdetails.Delete);
+
 
 // ——— CRUD cho Addresses ———
 router.get   ('/addresses',     addressCtrl.getList);
