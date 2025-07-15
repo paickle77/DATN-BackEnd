@@ -100,6 +100,12 @@ router.post  ('/orders',     orderCtrl.Add);
 router.put   ('/orders/:id', orderCtrl.Edit);
 router.delete('/orders/:id', orderCtrl.Delete);
 
+// Hủy đơn (khi admin chấp nhận hoàn trả)
+router.post('/orders/:id/cancel', orderCtrl.cancelOrder);
+
+// Tạo đơn thay thế (Đổi hàng / Tạo đơn mới)
+router.post('/orders/:id/replace', orderCtrl.replaceOrder);
+
 router.get('/orders/:id', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   orderCtrl.GetOne(req, res, next);
