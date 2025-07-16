@@ -1,14 +1,14 @@
 const Base = require('./base.controller');
-const Order = require('../models/order.model');
-module.exports = Base(Order);
+const Bill = require('../models/bill.model');
+module.exports = Base(Bill);
 
 
-module.exports.GetAllOrder= async (req,res)=>{
+module.exports.GetAllBils= async (req,res)=>{
  try {
-    const data = await Order.find()
+    const data = await Bill.find()
       .populate('user_id')
       .populate('address_id')
-      .populate('voucher_id')
+    //   .populate('voucher_id')
       .exec();
 
     res.json({ msg: 'OK', data: data });
