@@ -21,27 +21,14 @@ const categoryCtrl       = require('../controllers/api.category.controller');
 const productCtrl        = require('../controllers/api.product.controller');
 const sizeCtrl           =require('../controllers/size.controller');
 const authCtrl           = require('../controllers/api.auth.controller');
-const refundReqCtrl      = require('../controllers/api.refundRequest.controller');
-const shipmentCtrl = require('../controllers/api.shipment.controller');
-
+const billCtrl           = require('../controllers/api.bill.controller');
+const billdetails    = require('../controllers/api.billdetails.controller');
 // 1️⃣ Các route public (không cần token)
 router.post('/login',    authCtrl.login);
 router.post('/register', authCtrl.register);
 
-// // 2️⃣ Tất cả các route phía dưới đây đều bảo vệ bằng middleware api_auth
+// 2️⃣ Tất cả các route phía dưới đây đều bảo vệ bằng middleware api_auth
 // router.use(mdw.api_auth);
-
-router.get   ('/refund_requests',      refundReqCtrl.GetList);
-router.post  ('/refund_requests',      refundReqCtrl.Add);
-router.put   ('/refund_requests/:id',  refundReqCtrl.Edit);
-router.delete('/refund_requests/:id',  refundReqCtrl.Delete);
-
-// ——— CRUD cho Shipments ———
-router.get   ('/shipments',      shipmentCtrl.getList);
-router.get   ('/shipments/:id',  shipmentCtrl.GetOne);
-router.post  ('/shipments',      shipmentCtrl.Add);
-router.put   ('/shipments/:id',  shipmentCtrl.Edit);
-router.delete('/shipments/:id',  shipmentCtrl.Delete);
 
 // ——— CRUD cho User ———
 router.get   ('/users',        userCtrl.getList);
@@ -50,8 +37,27 @@ router.post  ('/users',        userCtrl.Add);
 router.put   ('/users/:id',    userCtrl.Edit);
 router.delete('/users/:id',    userCtrl.Delete);
 
+// ——— CRUD cho bill ———
+router.get   ('/bills',        billCtrl.getList);
+router.get   ('/GetAllBills',  billCtrl.GetAllBils);
+router.get   ('/bills/:id',    billCtrl.GetOne);
+router.post  ('/bills',        billCtrl.Add);
+router.put   ('/bills/:id',    billCtrl.Edit);
+router.delete('/bills/:id',    billCtrl.Delete);
+
+// ——— CRUD cho Bill Details ———
+router.get   ('/billdetails',     billdetails.getList);
+router.get   ('/GetAllBillDetails', billdetails.GetAllBillDetail);
+router.get   ('/billdetails/:id', billdetails.GetOne);
+router.post  ('/billdetails',     billdetails.Add);
+router.put   ('/billdetails/:id', billdetails.Edit);
+router.delete('/billdetails/:id', billdetails.Delete);
+
+
 // ——— CRUD cho Addresses ———
 router.get   ('/addresses',     addressCtrl.getList);
+router.put   ('/set-default/:id',addressCtrl.setDefault);
+router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
 router.get   ('/addresses/:id', addressCtrl.GetOne);
 router.post  ('/addresses',     addressCtrl.Add);
 router.put   ('/addresses/:id', addressCtrl.Edit);
@@ -59,10 +65,13 @@ router.delete('/addresses/:id', addressCtrl.Delete);
 
 // ——— CRUD cho Carts ———
 router.get   ('/carts',        cartCtrl.getList);
+router.get   ('/GetAllCarts',  cartCtrl.GetAllCart);
 router.get   ('/carts/:id',    cartCtrl.GetOne);
-router.post  ('/carts',        cartCtrl.Add);
+router.post  ('/addtocarts',   cartCtrl.Add);
 router.put   ('/carts/:id',    cartCtrl.Edit);
 router.delete('/carts/:id',    cartCtrl.Delete);
+// API xóa toàn bộ giỏ hàng theo user_id
+router.delete('/carts/user/:user_id', cartCtrl.DeleteCartByUser);
 
 // ——— CRUD cho Favorites ———
 router.get   ('/favorites',     favoriteCtrl.getList);
@@ -95,7 +104,8 @@ router.delete('/vouchers/:id', voucherCtrl.Delete);
 
 // ——— CRUD cho Orders ———
 router.get   ('/orders',     orderCtrl.getList);
-// router.get   ('/orders/:id', orderCtrl.GetOne);
+router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
+router.get   ('/orders/:id', orderCtrl.GetOne);
 router.post  ('/orders',     orderCtrl.Add);
 router.put   ('/orders/:id', orderCtrl.Edit);
 router.delete('/orders/:id', orderCtrl.Delete);
@@ -127,6 +137,7 @@ router.delete('/payments/:id', paymentCtrl.Delete);
 
 // ——— CRUD cho Reviews ———
 router.get   ('/reviews',     reviewCtrl.getList);
+router.get   ('/GetAllReview',    reviewCtrl.GetAllReview);
 router.get   ('/reviews/:id', reviewCtrl.GetOne);
 router.post  ('/reviews',     reviewCtrl.Add);
 router.put   ('/reviews/:id', reviewCtrl.Edit);
@@ -159,6 +170,7 @@ router.get   ('/productscategory',     productCtrl.GetListByCategory);
 router.get   ('/productsandcategoryid',productCtrl.getProductAndCategoryName);
 router.get   ('/productsandintergradianID',productCtrl.getProductAndIngredientName);
 router.get   ('/products/:id', productCtrl.GetOne);
+router.get   ('/productbyID/:id', productCtrl.getproductbyID);
 router.post  ('/products',     productCtrl.Add);
 router.put   ('/products/:id', productCtrl.Edit);
 router.delete('/products/:id', productCtrl.Delete);

@@ -45,3 +45,14 @@ module.exports.getProductAndIngredientName= async (req,res)=>{
     res.status(500).json({error: err.message});
   }
 }
+
+  module.exports.getproductbyID= async (req,res)=>{
+  try{
+    const products =await Product.findById(req.params.id)
+    .populate('category_id')
+    .exec();
+   res.json({ msg: 'OK', data: products })
+  }catch(err){
+    res.status(500).json({error: err.message});
+  }
+}
