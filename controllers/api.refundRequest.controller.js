@@ -9,7 +9,8 @@ const controller = Base(RefundRequest);
 controller.GetList = async (req, res) => {
   try {
     const list = await RefundRequest.find()
-      .populate('order_id', 'status total_price')
+      .populate('order_id','status total_price user_id') // nếu cần thêm user_id
+      .populate('customer_id','name')      // bây giờ mới đọc được
       .populate('processed_by', 'name');
     res.json({ msg: 'OK', data: list });
   } catch (err) {

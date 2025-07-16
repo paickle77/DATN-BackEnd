@@ -135,7 +135,7 @@ controller.GetOne = async (req, res) => {
     product_id: d.product_id._id,     // giữ lại product_id
     productName: d.product_id.name,
     quantity:    d.quantity,
-    unitPrice:   d.price
+    unitPrice:    d.price
   }));
 
 
@@ -174,50 +174,81 @@ controller.cancelOrder = async (req, res) => {
  * POST /orders/:id/replace
  * Tạo đơn thay thế (đổi hàng / trả hàng rồi order lại)
  */
-// controllers/api.order.controller.js
 controller.replaceOrder = async (req, res) => {
-  const original = await Order.findById(req.params.id).lean();
-  if (!original) return res.status(404).json({ msg:'Không tìm thấy đơn gốc' });
+  try {
+    // 1) Lấy order gốc
+    const original = await Order.findById(req.params.id).lean();
+    if (!original) {
+      return res.status(404).json({ msg: 'Không tìm thấy đơn gốc', data: null });
+    }
 
-  const { items, address_id, voucher_id, payment_method, shipping_method, note } = req.body;
+    // 2) Chuẩn bị dữ liệu cho đơn mới
+    const {
+      items,
+      address_id,
+      voucher_id,
+      payment_method,
+      shipping_method,
+      note
+    } = req.body;
 
-  // 1) Tạo dữ liệu cho đơn mới
-  const newOrderData = {
-    ...original,
-    replacement_of: req.params.id,
-    status: 'Chờ xác nhận',
-    cancel_note: '',
-    address_id:     address_id    ?? original.address_id,
-    voucher_id:     voucher_id    ?? original.voucher_id,
-    payment_method: payment_method?? original.payment_method,
-    shipping_method:shipping_method?? original.shipping_method,
-    note:           note          ?? original.note,
-    created_at:     new Date()
-  };
-  delete newOrderData._id;
+    const newOrderData = {
+      ...original,
+      replacement_of: req.params.id,
+      status: 'Chờ xác nhận',
+      cancel_note: '',
+      address_id:     address_id     ?? original.address_id,
+      voucher_id:     voucher_id     ?? original.voucher_id,
+      payment_method: payment_method ?? original.payment_method,
+      shipping_method:shipping_method?? original.shipping_method,
+      note:           note           ?? original.note,
+      created_at:     new Date()
+    };
+    delete newOrderData._id;
 
-  // 2) Tạo đơn mới
-  const newOrder = await Order.create(newOrderData);
+    // 3) Tạo đơn mới
+    const newOrder = await Order.create(newOrderData);
 
-  // 3) Xóa mọi detail cũ của đơn mới (thường chưa có, nhưng đảm bảo)
-  await OrderDetail.deleteMany({ order_id: newOrder._id });
+        // 4) Chuẩn bị detail: 
+        //    - Nếu front-end gửi items thì dùng items đó
+        //    - Ngược lại tự clone từ order gốc
+        let sourceDetails = [];
+        if (Array.isArray(items) && items.length) {
+          sourceDetails = items.map(it => ({
+            product_id: it.product_id,
+            quantity:   it.quantity,
+            price:      it.price
+          }));
+        } else {
+          const origD = await OrderDetail.find({ order_id: req.params.id }).lean();
+          sourceDetails = origD.map(d => ({
+            product_id: d.product_id,
+            quantity:   d.quantity,
+            price:      d.price
+          }));
+        }
+      
+        // 5) Chèn tất cả detail cho đơn mới
+        await OrderDetail.insertMany(
+          sourceDetails.map(d => ({ ...d, order_id: newOrder._id }))
+        );
 
-  // 4) Tạo lại details từ payload items
-  if (Array.isArray(items) && items.length) {
-    const newDetails = items.map(it => ({
-      order_id:   newOrder._id,
-      product_id: it.product_id,
-      quantity:   it.quantity,
-      price:      it.price
-    }));
-    await OrderDetail.insertMany(newDetails);
+    // 5) Xóa (nếu có nhầm) và chèn detail cho đơn mới
+    await OrderDetail.deleteMany({ order_id: newOrder._id });
+    if (sourceDetails.length) {
+      await OrderDetail.insertMany(
+        sourceDetails.map(d => ({ ...d, order_id: newOrder._id }))
+      );
+    }
+
+    // 6) Đánh dấu đơn gốc đã “Đã đổi hàng”
+    await Order.findByIdAndUpdate(req.params.id, { status: 'Đã đổi hàng' });
+
+    return res.status(201).json({ msg: 'Tạo đơn thay thế thành công', data: newOrder });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ msg: err.message, data: null });
   }
-
-  // 5) Đánh dấu đơn gốc đã “Đã đổi hàng”
-  await Order.findByIdAndUpdate(req.params.id, { status: 'Đã đổi hàng' });
-
-  return res.status(201).json({ msg: 'Tạo đơn thay thế thành công', data: newOrder });
 };
-
 
 module.exports = controller;
