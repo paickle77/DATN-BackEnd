@@ -39,6 +39,7 @@ router.delete('/users/:id',    userCtrl.Delete);
 
 // ——— CRUD cho bill ———
 router.get   ('/bills',        billCtrl.getList);
+router.get   ('/GetAllBills',  billCtrl.GetAllBils);
 router.get   ('/bills/:id',    billCtrl.GetOne);
 router.post  ('/bills',        billCtrl.Add);
 router.put   ('/bills/:id',    billCtrl.Edit);
@@ -46,6 +47,7 @@ router.delete('/bills/:id',    billCtrl.Delete);
 
 // ——— CRUD cho Bill Details ———
 router.get   ('/billdetails',     billdetails.getList);
+router.get   ('/GetAllBillDetails', billdetails.GetAllBillDetail);
 router.get   ('/billdetails/:id', billdetails.GetOne);
 router.post  ('/billdetails',     billdetails.Add);
 router.put   ('/billdetails/:id', billdetails.Edit);
@@ -157,6 +159,7 @@ router.get   ('/productscategory',     productCtrl.GetListByCategory);
 router.get   ('/productsandcategoryid',productCtrl.getProductAndCategoryName);
 router.get   ('/productsandintergradianID',productCtrl.getProductAndIngredientName);
 router.get   ('/products/:id', productCtrl.GetOne);
+router.get   ('/productbyID/:id', productCtrl.getproductbyID);
 router.post  ('/products',     productCtrl.Add);
 router.put   ('/products/:id', productCtrl.Edit);
 router.delete('/products/:id', productCtrl.Delete);

@@ -9,6 +9,7 @@ const billSchema = new Schema({
   payment_method: { type: String, required: true },
   total: { type: Number, required: true },
   created_at: { type: Date, default: Date.now },
+  status: {type:String, required:true}
 }, { timestamps: true });
 
 module.exports = mongoose.model('Bill', billSchema);
