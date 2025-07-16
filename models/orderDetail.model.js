@@ -7,8 +7,8 @@ const OrderDetailSchema = new mongoose.Schema({
   quantity:   { type: Number,                                required: true, min: 1 },
   price:      { type: Number,                                required: true }
 }, {
-  collection: 'order_details'
+  collection: 'orderdetails'  // sửa lại tên collection cho khớp
 });
 
-// Thêm 'order_details' làm tham số thứ ba để ép Mongoose dùng đúng collection này
-module.exports = mongoose.model('OrderDetail', OrderDetailSchema, 'order_details');
+// Export với tham số thứ ba là 'orderdetails'
+module.exports = mongoose.model('OrderDetail', OrderDetailSchema, 'orderdetails');

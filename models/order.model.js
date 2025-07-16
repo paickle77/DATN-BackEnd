@@ -19,6 +19,10 @@ const OrderSchema = new mongoose.Schema({
   voucher_id:  { type: mongoose.Schema.Types.ObjectId, ref: 'Voucher'       },
   replacement_of: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
   cancel_note:    { type: String, default: '' },
+  
+  payment_method:  { type: String, default: '' },
+  shipping_method: { type: String, default: '' },
+  note:            { type: String, default: '' },
 }, {
   collection: 'orders',
   timestamps: { createdAt: 'created_at', updatedAt: false }
