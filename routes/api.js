@@ -29,17 +29,18 @@ router.post('/login', authCtrl.login);
 router.post('/register', authCtrl.register);
 router.post('/users/send-otp', userCtrl.sendOTP);
 router.post('/users/reset-password', userCtrl.resetPassword);
-
+router.post('/users/change-password', userCtrl.changePassword);
 
 // 2️⃣ Bảo vệ tất cả route còn lại bằng api_auth (xác thực token)
 // router.use(api_auth);
 
 // 3️⃣ Route yêu cầu quyền admin
-router.get('/users', requireRole('admin'), userCtrl.getList);
-router.get('/users/:id', requireRole('admin'), userCtrl.GetOne);
+router.get('/users', userCtrl.getList);
+router.get('/users/:id', userCtrl.GetOne);
 router.post('/users', requireRole('admin'), userCtrl.Add);
-router.put('/users/:id', requireRole('admin'), userCtrl.Edit);
+router.put('/users/:id', userCtrl.Edit);
 router.delete('/users/:id', requireRole('admin'), userCtrl.Delete);
+
 
 // Logs
 router.get('/logs', requireRole('admin'), logCtrl.getList);
@@ -52,11 +53,16 @@ router.delete('/logs/:id', requireRole('admin'), logCtrl.Delete);
 
 
 // Addresses
-router.get('/addresses', addressCtrl.getList);
-router.get('/addresses/:id', addressCtrl.GetOne);
-router.post('/addresses', addressCtrl.Add);
-router.put('/addresses/:id', addressCtrl.Edit);
+router.get   ('/addresses',     addressCtrl.getList);
+router.put   ('/set-default/:id',addressCtrl.setDefault);
+router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
+router.get   ('/addresses/:id', addressCtrl.GetOne);
+router.post  ('/addresses',     addressCtrl.Add);
+router.put   ('/addresses/:id', addressCtrl.Edit);
 router.delete('/addresses/:id', addressCtrl.Delete);
+// Thêm địa chỉ đầu tiên cho user mới
+router.post('/addresses/first', addressCtrl.AddFirstAddress);
+
 
 // Carts
 router.get('/carts', cartCtrl.getList);

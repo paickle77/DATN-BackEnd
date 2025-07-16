@@ -6,8 +6,8 @@ app.use(express.static('public'));
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'khoangk412@gmail.com',
-    pass: 'bjji wjze mfcp tpld', // App password từ Google
+    user: 'nhom6agile@gmail.com',
+    pass: 'xdfi oyra niqp qpcg', // App password từ Google
   },
 });
 
