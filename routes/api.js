@@ -34,7 +34,7 @@ router.post('/register', authCtrl.register);
 // router.use(mdw.api_auth);
 router.post('/users/send-otp', userCtrl.sendOTP);
 router.post('/users/reset-password', userCtrl.resetPassword);
-
+router.post('/users/change-password', userCtrl.changePassword);
 
 // 2️⃣ Bảo vệ tất cả route còn lại bằng api_auth (xác thực token)
 // router.use(api_auth);
@@ -63,14 +63,27 @@ router.put   ('/billdetails/:id', billdetails.Edit);
 router.delete('/billdetails/:id', billdetails.Delete);
 
 // 3️⃣ Route yêu cầu quyền admin
-router.get('/users', requireRole('admin'), userCtrl.getList);
-router.get('/users/:id', requireRole('admin'), userCtrl.GetOne);
+router.get('/users', userCtrl.getList);
+router.get('/users/:id', userCtrl.GetOne);
 router.post('/users', requireRole('admin'), userCtrl.Add);
-router.put('/users/:id', requireRole('admin'), userCtrl.Edit);
+router.put('/users/:id', userCtrl.Edit);
 router.delete('/users/:id', requireRole('admin'), userCtrl.Delete);
 
-// ——— CRUD cho Addresses ———
+
+// Logs
+router.get('/logs', requireRole('admin'), logCtrl.getList);
+router.get('/logs/:id', requireRole('admin'), logCtrl.GetOne);
+router.post('/logs', requireRole('admin'), logCtrl.Add);
+router.put('/logs/:id', requireRole('admin'), logCtrl.Edit);
+router.delete('/logs/:id', requireRole('admin'), logCtrl.Delete);
+
+// Các route còn lại: user và admin đều được truy cập
+
+
+// Addresses
 router.get   ('/addresses',     addressCtrl.getList);
+router.put   ('/set-default/:id',addressCtrl.setDefault);
+router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
 router.put   ('/set-default/:id',addressCtrl.setDefault);
 router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
 router.get   ('/addresses/:id', addressCtrl.GetOne);
@@ -102,6 +115,10 @@ router.put   ('/carts/:id',    cartCtrl.Edit);
 router.delete('/carts/:id',    cartCtrl.Delete);
 // API xóa toàn bộ giỏ hàng theo user_id
 router.delete('/carts/user/:user_id', cartCtrl.DeleteCartByUser);
+// Thêm địa chỉ đầu tiên cho user mới
+router.post('/addresses/first', addressCtrl.AddFirstAddress);
+
+
 // Carts
 router.get('/carts', cartCtrl.getList);
 router.get('/carts/:id', cartCtrl.GetOne);
