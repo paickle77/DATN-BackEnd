@@ -89,6 +89,21 @@ router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
 router.get   ('/addresses/:id', addressCtrl.GetOne);
 router.post  ('/addresses',     addressCtrl.Add);
 router.put   ('/addresses/:id', addressCtrl.Edit);
+// Logs
+router.get('/logs', requireRole('admin'), logCtrl.getList);
+router.get('/logs/:id', requireRole('admin'), logCtrl.GetOne);
+router.post('/logs', requireRole('admin'), logCtrl.Add);
+router.put('/logs/:id', requireRole('admin'), logCtrl.Edit);
+router.delete('/logs/:id', requireRole('admin'), logCtrl.Delete);
+
+// Các route còn lại: user và admin đều được truy cập
+
+
+// Addresses
+router.get('/addresses', addressCtrl.getList);
+router.get('/addresses/:id', addressCtrl.GetOne);
+router.post('/addresses', addressCtrl.Add);
+router.put('/addresses/:id', addressCtrl.Edit);
 router.delete('/addresses/:id', addressCtrl.Delete);
 
 // ——— CRUD cho Carts ———
