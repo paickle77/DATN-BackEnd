@@ -1,16 +1,17 @@
-const Base          = require('./base.controller');
+// controllers/api.refundRequest.controller.js
+const Base = require('./base.controller');
 const RefundRequest = require('../models/refundRequest.model');
-const Order         = require('../models/order.model');
+const Bill = require('../models/bill.model');
 const { processRefund } = require('../utils/payment');
 
 const controller = Base(RefundRequest);
 
-// Populate thêm order và processed_by
+// GET /refund_requests - Danh sách yêu cầu hoàn trả với thông tin hóa đơn và nhân viên xử lý
 controller.GetList = async (req, res) => {
   try {
     const list = await RefundRequest.find()
-      .populate('order_id','status total_price user_id') // nếu cần thêm user_id
-      .populate('customer_id','name')      // bây giờ mới đọc được
+      .populate('bill_id', 'status total user_id')
+      .populate('customer_id', 'name')
       .populate('processed_by', 'name');
     res.json({ msg: 'OK', data: list });
   } catch (err) {
@@ -19,7 +20,7 @@ controller.GetList = async (req, res) => {
   }
 };
 
-// Xử lý cập nhật trạng thái
+// PUT /refund_requests/:id - Cập nhật trạng thái yêu cầu hoàn trả
 controller.Edit = async (req, res) => {
   try {
     const { status } = req.body;
@@ -37,17 +38,17 @@ controller.Edit = async (req, res) => {
     }
 
     // Nếu admin chấp nhận hoàn trả
-    if (status === 'Đã chấp nhận') {
-      // 1) Cập nhật order
-      await Order.findByIdAndUpdate(
-        updated.order_id,
-        { status: 'Đã trả hàng' },
+    if (status === 'accepted') {
+      // 1) Cập nhật hóa đơn
+      await Bill.findByIdAndUpdate(
+        updated.bill_id,
+        { status: 'done' },
         { new: true }
       );
 
-      // 2) Gọi payment gateway với đúng số tiền cần hoàn
+      // 2) Gọi payment gateway hoàn tiền
       const amount = updated.refund_amount || 0;
-      await processRefund(updated.order_id, amount);
+      await processRefund(updated.bill_id, amount);
     }
 
     res.json({ msg: 'OK', data: updated });

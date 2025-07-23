@@ -1,52 +1,54 @@
-const Base         = require('./base.controller');
-const Shipment     = require('../models/shipment.model');
-const Order        = require('../models/order.model');
-const User         = require('../models/user.model');
-const { sendEmail }= require('../utils/mail');
-const { sendSMS }  = require('../utils/sms');
+// controllers/api.shipment.controller.js
+const Base = require('./base.controller');
+const Shipment = require('../models/shipment.model');
+const Bill = require('../models/bill.model');
+const User = require('../models/user.model');
+const { sendEmail } = require('../utils/mail');
+const { sendSMS } = require('../utils/sms');
 
-const controller = Base(Shipment);
+const controller2 = Base(Shipment);
 
-controller.getList = async (req, res) => {
+// GET /shipments - Danh sách lô giao hàng với thông tin hóa đơn và nhân viên
+controller2.getList = async (req, res) => {
   try {
-    const list = await Shipment
-      .find()
-      .populate('order_id','_id user_id status')
-      .populate('assignedTo','name');
+    const list = await Shipment.find()
+      .populate('bill_id', '_id user_id status')
+      .populate('assignedTo', 'name');
     res.json({ msg: 'OK', data: list });
   } catch (err) {
-    res.status(500).json({ msg: err.message });
+    console.error(err);
+    res.status(500).json({ msg: err.message, data: null });
   }
 };
 
-controller.Edit = async (req, res) => {
+// PUT /shipments/:id - Cập nhật trạng thái giao hàng và thông báo
+controller2.Edit = async (req, res) => {
   try {
     const updated = await Shipment.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
     )
-    .populate('order_id')
+    .populate('bill_id')
     .populate('assignedTo');
 
-    // Thông báo khách
-    const customer = await User.findById(updated.order_id.user_id);
+    // Thông báo khách hàng
+    const customer = await User.findById(updated.bill_id.user_id);
     try {
-        if (req.body.status) {
-            const msg = `Đơn ${updated.order_id._id}: ${req.body.status}`;
-            await sendEmail(customer.email, 'Cập nhật giao hàng', msg);
-            await sendSMS(customer.phone, msg);
-        }
-        } catch(err) {
-        console.error('Lỗi khi gửi mail/SMS:', err);
-        // nhưng vẫn tiếp tục xử lý
-        }
+      if (req.body.status) {
+        const msg = `Hóa đơn ${updated.bill_id._id}: ${req.body.status}`;
+        await sendEmail(customer.email, 'Cập nhật giao hàng', msg);
+        await sendSMS(customer.phone, msg);
+      }
+    } catch (err2) {
+      console.error('Lỗi khi gửi mail/SMS:', err2);
+    }
 
-    // Nếu ship hoàn thành → cập nhật order
-    if (req.body.status === 'Hoàn thành') {
-      await Order.findByIdAndUpdate(
-        updated.order_id._id,
-        { status: 'Đã nhận hàng' },
+    // Nếu giao hoàn thành → cập nhật hóa đơn
+    if (req.body.status === 'done') {
+      await Bill.findByIdAndUpdate(
+        updated.bill_id._id,
+        { status: 'done' },
         { new: true }
       );
     }
@@ -58,4 +60,4 @@ controller.Edit = async (req, res) => {
   }
 };
 
-module.exports = controller;
+module.exports = controller2;

@@ -1,15 +1,24 @@
-const mongoose = require('./db');
-
+// models/shipment.model.js
+const mongoose = require('mongoose');
 const ShipmentSchema = new mongoose.Schema({
-  order_id:    { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
-  carrier:     { type: String, required: false, default: '' },
-  trackingCode:{ type: String, required: false, default: '' },
-  shippedDate: { type: Date,   default: Date.now },
-  status:      { type: String, enum: ['Đang giao','Hoàn thành'], default: 'Đang giao' },
-  assignedTo:  { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-}, {
-  collection: 'shipments',
+  bill_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Bill',
+    required: true
+  },
+  carrier:      String,
+  trackingCode: String,
+  shippedDate:  Date,
+  status: {
+    type: String,
+    enum: ['doing','shipping','done'],
+    default: 'doing'
+  },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
+},{
   timestamps: true
 });
-
 module.exports = mongoose.model('Shipment', ShipmentSchema);
