@@ -19,6 +19,8 @@ const productCtrl        = require('../controllers/api.product.controller');
 const sizeCtrl           = require('../controllers/size.controller');
 const authCtrl           = require('../controllers/api.auth.controller');
 const billCtrl           = require('../controllers/api.bill.controller');
+const billdetails    = require('../controllers/api.billdetails.controller');
+const voucher_user = require('../controllers/api.voucher_user.controller');
 const billDetailCtrl     = require('../controllers/api.billdetails.controller');
 const refundCtrl         = require('../controllers/api.refundRequest.controller');
 const shipmentCtrl       = require('../controllers/api.shipment.controller');
@@ -113,6 +115,38 @@ router.get('/vouchers/:id', voucherCtrl.GetOne);
 router.post('/vouchers', requireRole('admin'), voucherCtrl.Add);
 router.put('/vouchers/:id', requireRole('admin'), voucherCtrl.Edit);
 router.delete('/vouchers/:id', requireRole('admin'), voucherCtrl.Delete);
+
+// Voucher Users
+router.get('/getallvoucher_users', voucher_user.GetAllVoucher_user);
+router.get('/voucher_users', voucher_user.getList);
+router.get('/voucher_users/:id', voucher_user.GetOne);
+router.post('/voucher_users', voucher_user.Add);
+router.put('/voucher_users/:id', voucher_user.Edit);
+router.delete('/voucher_users/:id', voucher_user.Delete);
+router.get('/voucher_users/user/:userId', voucher_user.GetVoucherUserByUserId);
+
+
+
+
+// ——— CRUD cho Orders ———
+router.get   ('/orders',     orderCtrl.getList);
+router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
+router.get   ('/orders/:id', orderCtrl.GetOne);
+router.post  ('/orders',     orderCtrl.Add);
+router.put   ('/orders/:id', orderCtrl.Edit);
+// Orders
+router.get('/orders', orderCtrl.getList);
+router.get('/orders/:id', orderCtrl.GetOne);
+router.post('/orders', orderCtrl.Add);
+router.put('/orders/:id', orderCtrl.Edit);
+router.delete('/orders/:id', orderCtrl.Delete);
+
+// Order Details
+router.get('/orderDetails', orderDetailCtrl.getList);
+router.get('/orderDetails/:id', orderDetailCtrl.GetOne);
+router.post('/orderDetails', orderDetailCtrl.Add);
+router.put('/orderDetails/:id', orderDetailCtrl.Edit);
+router.delete('/orderDetails/:id', orderDetailCtrl.Delete);
 
 // Payments
 router.get('/payments', paymentCtrl.getList);
