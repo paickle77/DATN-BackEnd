@@ -1,26 +1,41 @@
-const Base = require('./base.controller');
-const voucher_user = require('../models/voucher_user.model');
-module.exports = Base(voucher_user);
+// controllers/api.voucher_user.controller.js
+const Base        = require('./base.controller');
+const VoucherUser = require('../models/voucher_user.model');
 
+const controller = Base(VoucherUser);
 
-module.exports.GetAllVoucher_user = async (req, res) => {
+// ghi đè getList để luôn populate cả user & voucher
+controller.getList = async (req, res) => {
   try {
-    const result  = await voucher_user.find()
+    const list = await VoucherUser.find()
+      .populate('user_id', 'name email')
+      .populate('voucher_id', 'code discount_percent')
+      .lean();
+    res.json({ msg: 'OK', data: list });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: err.message, data: null });
+  }
+};
+
+// giữ nguyên 2 method cho mobile
+controller.GetAllVoucher_user = async (req, res) => {
+  try {
+    const result = await VoucherUser.find()
       .populate('voucher_id')
       .exec();
-
-    res.json({ msg: 'OK', data: result  });
+    res.json({ msg: 'OK', data: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-module.exports.GetVoucherUserByUserId = async (req, res) => {
+
+controller.GetVoucherUserByUserId = async (req, res) => {
   const { userId } = req.params;
   try {
-    const docs = await voucher_user.find({ user_id: userId })
-      .populate('voucher_id') // trả full voucher
+    const docs = await VoucherUser.find({ user_id: userId })
+      .populate('voucher_id')
       .exec();
-
     return res.json({
       success: true,
       message: 'Lấy danh sách voucher của user thành công.',
@@ -34,3 +49,5 @@ module.exports.GetVoucherUserByUserId = async (req, res) => {
     });
   }
 };
+
+module.exports = controller;

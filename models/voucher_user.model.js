@@ -5,6 +5,7 @@ const Voucher_userSchema = new mongoose.Schema({
   voucher_id:      { type: mongoose.Schema.Types.ObjectId, ref: 'Voucher', required: true },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   start_date:       { type: Date,    required: true },
+  used_date:  { type: Date },                // ngày voucher đã được dùng
 }, {
   collection: 'voucher_user'
 });

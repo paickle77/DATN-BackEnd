@@ -1,3 +1,5 @@
+// src/routes/api.js
+
 const express = require('express');
 const router = express.Router();
 const { api_auth, requireRole } = require('../middleware/api.auth');
@@ -24,6 +26,8 @@ const voucher_user = require('../controllers/api.voucher_user.controller');
 const billDetailCtrl     = require('../controllers/api.billdetails.controller');
 const refundCtrl         = require('../controllers/api.refundRequest.controller');
 const shipmentCtrl       = require('../controllers/api.shipment.controller');
+const voucherUserBase    = require('../controllers/api.voucher_user.controller');       // mobile & basic web
+const voucherUserAdmin   = require('../controllers/api.voucherUserAdmin.controller');   // admin-only
 
 // Controllers...
 // (giữ nguyên phần import như cũ)
@@ -125,28 +129,40 @@ router.put('/voucher_users/:id', voucher_user.Edit);
 router.delete('/voucher_users/:id', voucher_user.Delete);
 router.get('/voucher_users/user/:userId', voucher_user.GetVoucherUserByUserId);
 
+// ─── Voucher_User (mobile & basic web) ────────────────────────────────────
+router.get(    '/voucher_users',           voucherUserBase.getList);
+router.get(    '/voucher_users/:id',       voucherUserBase.GetOne);
+router.post(   '/voucher_users',           voucherUserBase.Add);
+router.put(    '/voucher_users/:id',       voucherUserBase.Edit);
+router.delete( '/voucher_users/:id',       voucherUserBase.Delete);
+router.get(    '/voucher_users/user/:userId', voucherUserBase.GetVoucherUserByUserId);
 
+// ─── Voucher_User (admin only) ────────────────────────────────────────────
+router.get(    '/admin/voucher_users',         requireRole('admin'), voucherUserAdmin.getList);
+router.get(    '/admin/voucher_users/:id',     requireRole('admin'), voucherUserAdmin.GetOne);
+router.post(   '/admin/voucher_users',         requireRole('admin'), voucherUserAdmin.Add);
+router.put(    '/admin/voucher_users/:id',     requireRole('admin'), voucherUserAdmin.Edit);
+router.delete( '/admin/voucher_users/:id',     requireRole('admin'), voucherUserAdmin.Delete);
 
+// // ——— CRUD cho Orders ———
+// router.get   ('/orders',     orderCtrl.getList);
+// router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
+// router.get   ('/orders/:id', orderCtrl.GetOne);
+// router.post  ('/orders',     orderCtrl.Add);
+// router.put   ('/orders/:id', orderCtrl.Edit);
+// // Orders
+// router.get('/orders', orderCtrl.getList);
+// router.get('/orders/:id', orderCtrl.GetOne);
+// router.post('/orders', orderCtrl.Add);
+// router.put('/orders/:id', orderCtrl.Edit);
+// router.delete('/orders/:id', orderCtrl.Delete);
 
-// ——— CRUD cho Orders ———
-router.get   ('/orders',     orderCtrl.getList);
-router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
-router.get   ('/orders/:id', orderCtrl.GetOne);
-router.post  ('/orders',     orderCtrl.Add);
-router.put   ('/orders/:id', orderCtrl.Edit);
-// Orders
-router.get('/orders', orderCtrl.getList);
-router.get('/orders/:id', orderCtrl.GetOne);
-router.post('/orders', orderCtrl.Add);
-router.put('/orders/:id', orderCtrl.Edit);
-router.delete('/orders/:id', orderCtrl.Delete);
-
-// Order Details
-router.get('/orderDetails', orderDetailCtrl.getList);
-router.get('/orderDetails/:id', orderDetailCtrl.GetOne);
-router.post('/orderDetails', orderDetailCtrl.Add);
-router.put('/orderDetails/:id', orderDetailCtrl.Edit);
-router.delete('/orderDetails/:id', orderDetailCtrl.Delete);
+// // Order Details
+// router.get('/orderDetails', orderDetailCtrl.getList);
+// router.get('/orderDetails/:id', orderDetailCtrl.GetOne);
+// router.post('/orderDetails', orderDetailCtrl.Add);
+// router.put('/orderDetails/:id', orderDetailCtrl.Edit);
+// router.delete('/orderDetails/:id', orderDetailCtrl.Delete);
 
 // Payments
 router.get('/payments', paymentCtrl.getList);
