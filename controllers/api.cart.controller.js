@@ -10,6 +10,9 @@ module.exports.GetAllCart=async(req,res)=>{
         .populate('size_id','size')
         .exec();
 
+        // 🔐 Lọc bỏ những cart không có product hoặc size (null do bị xóa hoặc lỗi DB)
+    const validList = list.filter(item => item.product_id && item.size_id);
+
         res.json({msg: "OK ",data :list});
     } catch (error) {
         res.status(500).json({error:error.message})
