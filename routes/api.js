@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { api_auth, requireRole } = require('../middleware/api.auth');
+const upload = require('../middleware/api.upload'); 
+
 
 // Controllers
 const userCtrl           = require('../controllers/api.user.controller');
@@ -48,11 +50,11 @@ router.put   ('/users/:id',    userCtrl.Edit);
 router.delete('/users/:id',    userCtrl.Delete);
 
 // ——— CRUD cho Shipper ———
-// router.get   ('/shippers',        shipperCtrl.getList);
-// router.get   ('/shippers/:id',    shipperCtrl.GetOne);
+router.get   ('/shippers',        shipperCtrl.getList);
+router.get   ('/shippers/:id',    shipperCtrl.GetOne);
 router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
-// router.put   ('/shippers/:id',    shipperCtrl.Edit);
-// router.delete('/shippers/:id',    shipperCtrl.Delete);
+router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
+router.delete('/shippers/:id',    shipperCtrl.Delete);
 
 // ——— CRUD cho bill ———
 router.get   ('/bills',        billCtrl.getList);
