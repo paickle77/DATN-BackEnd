@@ -1,44 +1,55 @@
-// controllers/api.auth.controller.js
-const jwt       = require('jsonwebtoken');
-const bcrypt    = require('bcrypt');
-const UserModel = require('../models/user.model');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const Account = require('../models/account.model');       // model chứa email, password
+const User = require('../models/user.model');            // profile user
+const Shipper = require('../models/shipper.model');      // profile shipper
 require('dotenv').config();
 
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await UserModel.findOne({ email });
-    if (!user) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    const account = await Account.findOne({ email });
 
-    // ✅ Kiểm tra mật khẩu có được mã hóa không
-    if (!user.password || !user.password.startsWith('$2')) {
+    if (!account) {
+      return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    }
+
+    // ✅ Kiểm tra xem mật khẩu có tồn tại và đúng định dạng
+    if (!account.password || !account.password.startsWith('$2')) {
       return res.status(401).json({ error: 'Tài khoản không hợp lệ hoặc chưa hỗ trợ đăng nhập bằng mật khẩu' });
     }
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    const match = await bcrypt.compare(password, account.password);
+    if (!match) {
+      return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    }
 
     const token = jwt.sign(
-      { _id: user._id, role: user.role },
+      { _id: account._id, role: account.role },
       process.env.TOKEN_SEC_KEY,
       { expiresIn: '8h' }
     );
 
-    user.token = token;
-    await user.save();
+    let profile = null;
+
+    if (account.role === 'user' || account.role === 'admin') {
+      profile = await User.findOne({ account_id: account._id });
+    } else if (account.role === 'shipper') {
+      profile = await Shipper.findOne({ account_id: account._id });
+    }
 
     res.json({
       success: true,
       message: 'Đăng nhập thành công',
       data: {
         token,
-        user: {
-          _id: user._id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          phone: user.phone,
-        }
+        account: {
+          _id: account._id,
+          email: account.email,
+          role: account.role,
+          is_lock: account.is_lock,
+        },
+        profile
       }
     });
   } catch (err) {
@@ -46,7 +57,6 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: 'Lỗi server' });
   }
 };
-
 exports.register = async (req, res) => {
   try {
     const { email, password, name } = req.body;
