@@ -146,3 +146,52 @@ module.exports.EditByAccountId = async (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 };
+
+module.exports.getShipperByAccountId = async (req, res) => {
+  try {
+    const { account_id } = req.params;
+    
+
+    if (!account_id) {
+      return res.status(400).json({ message: 'Thiếu account_id'  });
+    }
+
+    const shipper = await Shipper.findOne({ account_id: account_id });
+    console.log('🚚 Lấy shipper theo account_id:', account_id);
+    console.log('🚚 Kết quả:', shipper);
+
+    if (!shipper) {
+      return res.status(404).json({ message: 'Không tìm thấy shipper' });
+    }
+
+    res.status(200).json({ success: true, data: shipper });
+  } catch (err) {
+    console.error('❌ Lỗi khi lấy shipper theo account_id:', err);
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
+  }
+};
+
+module.exports.updateOnlineStatus = async (req, res) => {
+  try {
+    const { _id, is_online } = req.body;
+
+    if (!_id || typeof is_online !== 'boolean') {
+      return res.status(400).json({ message: 'Thiếu account_id hoặc is_online không hợp lệ' });
+    }
+
+    const updated = await Shipper.findOneAndUpdate(
+      { _id },
+      { is_online },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: 'Không tìm thấy shipper' });
+    }
+
+    res.json({ success: true, message: 'Cập nhật trạng thái online thành công', data: updated });
+  } catch (error) {
+    console.error('❌ Lỗi khi cập nhật trạng thái online:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};

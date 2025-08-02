@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const upload = require('../middleware/api.upload');
 const { api_auth, requireRole } = require('../middleware/api.auth');
-const upload = require('../middleware/api.upload'); 
-
+ 
 
 // Controllers
 const userCtrl           = require('../controllers/api.user.controller');
@@ -44,6 +44,7 @@ router.post('/users/change-password', userCtrl.changePassword);
 
 // ——— CRUD cho User ———
 router.get   ('/users',        userCtrl.getList);
+router.get   ('/gelallusers',  userCtrl.GetAllUser);
 router.get   ('/users/:id',    userCtrl.GetOne);
 router.post  ('/users',        userCtrl.Add);
 router.put   ('/users/:id',    userCtrl.Edit);
@@ -52,8 +53,10 @@ router.delete('/users/:id',    userCtrl.Delete);
 // ——— CRUD cho Shipper ———
 router.get   ('/shippers',        shipperCtrl.getList);
 router.get   ('/shippers/:id',    shipperCtrl.GetOne);
+router.get('/shippers/:account_id', shipperCtrl.getShipperByAccountId);
 router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
 router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
+router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
 router.delete('/shippers/:id',    shipperCtrl.Delete);
 
 // ——— CRUD cho bill ———
@@ -63,6 +66,7 @@ router.get   ('/bills/:id',    billCtrl.GetOne);
 router.post  ('/bills',        billCtrl.Add);
 router.put   ('/bills/:id',    billCtrl.Edit);
 router.delete('/bills/:id',    billCtrl.Delete);
+router.put('/bills/:id/assign-shipper', billCtrl.AssignShipper);
 
 // ——— CRUD cho Bill Details ———
 router.get   ('/billdetails',     billdetails.getList);
@@ -72,12 +76,6 @@ router.post  ('/billdetails',     billdetails.Add);
 router.put   ('/billdetails/:id', billdetails.Edit);
 router.delete('/billdetails/:id', billdetails.Delete);
 
-// 3️⃣ Route yêu cầu quyền admin
-router.get('/users', userCtrl.getList);
-router.get('/users/:id', userCtrl.GetOne);
-router.post('/users', requireRole('admin'), userCtrl.Add);
-router.put('/users/:id', userCtrl.Edit);
-router.delete('/users/:id', requireRole('admin'), userCtrl.Delete);
 
 
 // Logs
