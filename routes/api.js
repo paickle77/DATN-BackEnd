@@ -24,6 +24,7 @@ const sizeCtrl           =require('../controllers/size.controller');
 const authCtrl           = require('../controllers/api.auth.controller');
 const billCtrl           = require('../controllers/api.bill.controller');
 const billdetails    = require('../controllers/api.billdetails.controller');
+const voucher_user = require('../controllers/api.voucher_user.controller');
 const shipperCtrl        = require('../controllers/api.shipper.controller');
 
 // Controllers...
@@ -67,6 +68,9 @@ router.post  ('/bills',        billCtrl.Add);
 router.put   ('/bills/:id',    billCtrl.Edit);
 router.delete('/bills/:id',    billCtrl.Delete);
 router.put('/bills/:id/assign-shipper', billCtrl.AssignShipper);
+router.post('/bills/CompleteOrder', billCtrl.CompleteOrder);
+router.post('/bills/CancelOrder', billCtrl.CancelOrder);
+
 
 // ——— CRUD cho Bill Details ———
 router.get   ('/billdetails',     billdetails.getList);
@@ -140,6 +144,18 @@ router.get('/vouchers/:id', voucherCtrl.GetOne);
 router.post('/vouchers', requireRole('admin'), voucherCtrl.Add);
 router.put('/vouchers/:id', requireRole('admin'), voucherCtrl.Edit);
 router.delete('/vouchers/:id', requireRole('admin'), voucherCtrl.Delete);
+
+// Voucher Users
+router.get('/getallvoucher_users', voucher_user.GetAllVoucher_user);
+router.get('/voucher_users', voucher_user.getList);
+router.get('/voucher_users/:id', voucher_user.GetOne);
+router.post('/voucher_users', voucher_user.Add);
+router.put('/voucher_users/:id', voucher_user.Edit);
+router.delete('/voucher_users/:id', voucher_user.Delete);
+router.get('/voucher_users/user/:userId', voucher_user.GetVoucherUserByUserId);
+
+
+
 
 // ——— CRUD cho Orders ———
 router.get   ('/orders',     orderCtrl.getList);

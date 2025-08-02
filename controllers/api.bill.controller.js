@@ -10,16 +10,10 @@ const controller = Base(Bill);
 // GET /GetAllBills — lấy toàn bộ hóa đơn như trước
 controller.GetAllBills = async (req, res) => {
   try {
-    // Lấy bill gốc (chưa populate)
-    const rawBills = await Bill.find();
-    console.log("✅ Raw user_ids in bills:", rawBills.map(b => b.user_id));
 
     // Sau đó mới populate
     const data = await Bill.find()
-      .populate({
-        path: 'user_id',
-        populate: { path: 'account_id', model: Account }  // chỉ hoạt động nếu user_id tồn tại
-      })
+      .populate('user_id')
       .populate('address_id');
 
     
@@ -29,7 +23,6 @@ controller.GetAllBills = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 
 // GET /bills/:id — override để gắn thêm items
@@ -89,6 +82,70 @@ controller.AssignShipper = async (req, res) => {
     res.json({ msg: 'Shipper nhận đơn thành công', data: bill });
   } catch (err) {
     res.status(500).json({ msg: err.message });
+  }
+};
+
+controller.CompleteOrder = async (req, res) => {
+  try {
+    const { orderId, shipperId } = req.body;
+
+    if (!orderId || !shipperId) {
+      return res.status(400).json({ success: false, message: 'Thiếu orderId hoặc shipperId' });
+    }
+
+    const bill = await Bill.findById(orderId);
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    }
+
+    if (bill.shipper_id?.toString() !== shipperId) {
+      return res.status(403).json({ success: false, message: 'Bạn không phải là người giao đơn hàng này' });
+    }
+
+    if (bill.status === 'done') {
+      return res.status(400).json({ success: false, message: 'Đơn hàng đã được hoàn thành trước đó' });
+    }
+
+    bill.status = 'done';
+    bill.completed_at = new Date(); // có thể thêm trường thời gian hoàn thành nếu cần
+    await bill.save();
+
+    res.json({ success: true, message: 'Hoàn thành đơn hàng thành công', data: bill });
+  } catch (error) {
+    console.error('CompleteOrder error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+controller.CancelOrder = async (req, res) => {
+  try {
+    const { orderId, shipperId } = req.body;
+
+    if (!orderId || !shipperId) {
+      return res.status(400).json({ success: false, message: 'Thiếu orderId hoặc shipperId' });
+    }
+
+    const bill = await Bill.findById(orderId);
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    }
+
+    if (bill.shipper_id?.toString() !== shipperId) {
+      return res.status(403).json({ success: false, message: 'Bạn không phải là shipper của đơn hàng này' });
+    }
+
+    if (bill.status === 'done') {
+      return res.status(400).json({ success: false, message: 'Đơn hàng đã hoàn thành, không thể hủy' });
+    }
+
+    bill.status = 'cancelled';
+    bill.cancelled_at = new Date(); // có thể thêm trường thời gian hủy nếu cần
+    await bill.save();
+
+    res.json({ success: true, message: 'Đơn hàng đã được hủy thành công', data: bill });
+  } catch (error) {
+    console.error('CancelOrder error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
