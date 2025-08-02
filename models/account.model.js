@@ -16,3 +16,6 @@ const AccountSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Account', AccountSchema);
+
+const mongoose = require('./db');
+

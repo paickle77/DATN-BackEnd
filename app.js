@@ -15,14 +15,27 @@ var apiRouter   = require('./routes/api');
 
 // *** Và 1 router duy nhất cho API CRUD ***
 var apiRouter   = require('./routes/api');
+const { log } = require('console');
 
 var app = express();
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+console.log('Static path:', path.join(__dirname, 'uploads'));
+
+// --- Thêm để tắt ETag (và tránh 304) ---
+app.disable('etag');
+// --- Thêm middleware no-cache cho mọi route ---
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
-// Cấu hình CORS
-app.use(cors())
+
+app.use(cors()); // hoặc cấu hình chi tiết nếu cần
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -33,9 +46,8 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
 
-
-// ** Dùng duy nhất cái này **
-app.use('/api', apiRouter);
+// Khởi chạy scheduler (cron jobs)
+require('./scheduler');
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

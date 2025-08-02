@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const upload = require('../middleware/api.upload');
 const { api_auth, requireRole } = require('../middleware/api.auth');
+ 
 
 // Controllers
 const userCtrl = require('../controllers/api.user.controller');
@@ -23,6 +25,8 @@ const authCtrl = require('../controllers/api.auth.controller');
 const billCtrl = require('../controllers/api.bill.controller');
 const billdetails = require('../controllers/api.billdetails.controller');
 const voucher_user = require('../controllers/api.voucher_user.controller');
+const shipperCtrl        = require('../controllers/api.shipper.controller');
+
 const shipperCtrl = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
 
@@ -43,6 +47,22 @@ router.post('/change-password', accountCtrl.changePassword); // Đổi password 
 // 2️⃣ Bảo vệ tất cả route còn lại bằng api_auth (xác thực token)
 // router.use(api_auth);
 
+// ——— CRUD cho User ———
+router.get   ('/users',        userCtrl.getList);
+router.get   ('/gelallusers',  userCtrl.GetAllUser);
+router.get   ('/users/:id',    userCtrl.GetOne);
+router.post  ('/users',        userCtrl.Add);
+router.put   ('/users/:id',    userCtrl.Edit);
+router.delete('/users/:id',    userCtrl.Delete);
+
+// ——— CRUD cho Shipper ———
+router.get   ('/shippers',        shipperCtrl.getList);
+router.get   ('/shippers/:id',    shipperCtrl.GetOne);
+router.get('/shippers/:account_id', shipperCtrl.getShipperByAccountId);
+router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
+router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
+router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
+router.delete('/shippers/:id',    shipperCtrl.Delete);
 // ——— CRUD cho User ———router.get('/users/:id', userCtrl.GetOne);
 router.get('/users', userCtrl.getList);
 router.get('/users/account/:account_id', userCtrl.getByAccountId); // ✅ Lấy user bằng account_id
@@ -56,6 +76,16 @@ router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
 
 
 // ——— CRUD cho bill ———
+router.get   ('/bills',        billCtrl.getList);
+router.get   ('/GetAllBills',  billCtrl.GetAllBills);
+router.get   ('/bills/:id',    billCtrl.GetOne);
+router.post  ('/bills',        billCtrl.Add);
+router.put   ('/bills/:id',    billCtrl.Edit);
+router.delete('/bills/:id',    billCtrl.Delete);
+router.put('/bills/:id/assign-shipper', billCtrl.AssignShipper);
+router.post('/bills/CompleteOrder', billCtrl.CompleteOrder);
+router.post('/bills/CancelOrder', billCtrl.CancelOrder);
+
 router.get('/bills', billCtrl.getList);
 router.get('/GetAllBills', billCtrl.GetAllBils);
 router.get('/bills/:id', billCtrl.GetOne);
@@ -70,6 +100,7 @@ router.get('/billdetails/:id', billdetails.GetOne);
 router.post('/billdetails', billdetails.Add);
 router.put('/billdetails/:id', billdetails.Edit);
 router.delete('/billdetails/:id', billdetails.Delete);
+
 
 
 // Logs
@@ -147,6 +178,11 @@ router.get('/voucher_users/user/:userId', voucher_user.GetVoucherUserByUserId);
 
 
 // ——— CRUD cho Orders ———
+router.get   ('/orders',     orderCtrl.getList);
+// router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
+router.get   ('/orders/:id', orderCtrl.GetOne);
+router.post  ('/orders',     orderCtrl.Add);
+router.put   ('/orders/:id', orderCtrl.Edit);
 router.get('/orders', orderCtrl.getList);
 router.get('/GetAllOrders', orderCtrl.GetAllOrder);
 router.get('/orders/:id', orderCtrl.GetOne);

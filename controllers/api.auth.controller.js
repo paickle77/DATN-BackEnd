@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const Account = require('../models/account.model');       // model chứa email, password
+const User = require('../models/user.model');            // profile user
+const Shipper = require('../models/shipper.model');      // profile shipper
 require('dotenv').config();
 
 const Account = require('../models/account.model');
@@ -11,10 +14,20 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const account = await Account.findOne({ email });
-    if (!account) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+
+    if (!account) {
+      return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    }
+
+    // ✅ Kiểm tra xem mật khẩu có tồn tại và đúng định dạng
+    if (!account.password || !account.password.startsWith('$2')) {
+      return res.status(401).json({ error: 'Tài khoản không hợp lệ hoặc chưa hỗ trợ đăng nhập bằng mật khẩu' });
+    }
 
     const match = await bcrypt.compare(password, account.password);
-    if (!match) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    if (!match) {
+      return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    }
 
     const token = jwt.sign(
       { _id: account._id, role: account.role },
@@ -23,7 +36,8 @@ exports.login = async (req, res) => {
     );
 
     let profile = null;
-    if (account.role === 'user') {
+
+    if (account.role === 'user' || account.role === 'admin') {
       profile = await User.findOne({ account_id: account._id });
     } else if (account.role === 'shipper') {
       profile = await Shipper.findOne({ account_id: account._id });
@@ -37,7 +51,8 @@ exports.login = async (req, res) => {
         account: {
           _id: account._id,
           email: account.email,
-          role: account.role
+          role: account.role,
+          is_lock: account.is_lock,
         },
         profile
       }
@@ -47,8 +62,6 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: 'Lỗi server' });
   }
 };
-
-// ───────── REGISTER USER ─────────
 exports.register = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -85,4 +98,3 @@ exports.register = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
