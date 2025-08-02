@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const UserModel = require('../models/user.model');
+const AccountModel = require('../models/account.model');
 require('dotenv').config();
 
 const api_auth = async (req, res, next) => {
@@ -11,14 +11,15 @@ const api_auth = async (req, res, next) => {
   const token = header.replace('Bearer ', '');
   try {
     const payload = jwt.verify(token, process.env.TOKEN_SEC_KEY);
-    const user = await UserModel.findById(payload._id);
-    if (!user) throw new Error('Không xác định người dùng');
 
-    if (user.is_lock) {
+    const account = await AccountModel.findById(payload._id);
+    if (!account) throw new Error('Không tìm thấy tài khoản');
+
+    if (account.is_lock) {
       return res.status(403).json({ error: 'Tài khoản đã bị khóa' });
     }
 
-    req.user = user; // Cho phép cả admin và user
+    req.account = account; // ✅ gán account (không còn là req.user)
     next();
   } catch (err) {
     console.error(err);
@@ -26,10 +27,10 @@ const api_auth = async (req, res, next) => {
   }
 };
 
-// Middleware phân quyền riêng
+// ✅ Phân quyền đúng theo role từ account
 const requireRole = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.account || !roles.includes(req.account.role)) {
       return res.status(403).json({ error: 'Bạn không có quyền truy cập' });
     }
     next();

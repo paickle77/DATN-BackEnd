@@ -3,26 +3,29 @@ const router = express.Router();
 const { api_auth, requireRole } = require('../middleware/api.auth');
 
 // Controllers
-const userCtrl           = require('../controllers/api.user.controller');
-const addressCtrl        = require('../controllers/api.address.controller');
-const cartCtrl           = require('../controllers/api.cart.controller');
-const favoriteCtrl       = require('../controllers/api.favorite.controller');
-const notificationCtrl   = require('../controllers/api.notification.controller');
-const logCtrl            = require('../controllers/api.log.controller');
-const voucherCtrl        = require('../controllers/api.voucher.controller');
-const orderCtrl          = require('../controllers/api.order.controller');
-const orderDetailCtrl    = require('../controllers/api.orderDetail.controller');
-const paymentCtrl        = require('../controllers/api.payment.controller');
-const reviewCtrl         = require('../controllers/api.review.controller');
-const ingredientCtrl     = require('../controllers/api.ingredient.controller');
-const branchCtrl         = require('../controllers/api.branch.controller');
-const categoryCtrl       = require('../controllers/api.category.controller');
-const productCtrl        = require('../controllers/api.product.controller');
-const sizeCtrl           =require('../controllers/size.controller');
-const authCtrl           = require('../controllers/api.auth.controller');
-const billCtrl           = require('../controllers/api.bill.controller');
-const billdetails    = require('../controllers/api.billdetails.controller');
+const userCtrl = require('../controllers/api.user.controller');
+const addressCtrl = require('../controllers/api.address.controller');
+const cartCtrl = require('../controllers/api.cart.controller');
+const favoriteCtrl = require('../controllers/api.favorite.controller');
+const notificationCtrl = require('../controllers/api.notification.controller');
+const logCtrl = require('../controllers/api.log.controller');
+const voucherCtrl = require('../controllers/api.voucher.controller');
+const orderCtrl = require('../controllers/api.order.controller');
+const orderDetailCtrl = require('../controllers/api.orderDetail.controller');
+const paymentCtrl = require('../controllers/api.payment.controller');
+const reviewCtrl = require('../controllers/api.review.controller');
+const ingredientCtrl = require('../controllers/api.ingredient.controller');
+const branchCtrl = require('../controllers/api.branch.controller');
+const categoryCtrl = require('../controllers/api.category.controller');
+const productCtrl = require('../controllers/api.product.controller');
+const sizeCtrl = require('../controllers/size.controller');
+const authCtrl = require('../controllers/api.auth.controller');
+const billCtrl = require('../controllers/api.bill.controller');
+const billdetails = require('../controllers/api.billdetails.controller');
 const voucher_user = require('../controllers/api.voucher_user.controller');
+const shipperCtrl = require('../controllers/api.shipper.controller');
+const accountCtrl = require('../controllers/api.account.controller');
+
 // Controllers...
 // (giữ nguyên phần import như cũ)
 
@@ -32,42 +35,41 @@ router.post('/register', authCtrl.register);
 
 // 2️⃣ Tất cả các route phía dưới đây đều bảo vệ bằng middleware api_auth
 // router.use(mdw.api_auth);
-router.post('/users/send-otp', userCtrl.sendOTP);
-router.post('/users/reset-password', userCtrl.resetPassword);
-router.post('/users/change-password', userCtrl.changePassword);
+router.post('/send-otp', accountCtrl.sendOTP);             // Gửi OTP reset password
+router.post('/verify-otp', accountCtrl.verifyOTP);         // Xác thực OTP (optional)
+router.post('/reset-password', accountCtrl.resetPassword); // Reset password với OTP
+router.post('/change-password', accountCtrl.changePassword); // Đổi password khi đã login
 
 // 2️⃣ Bảo vệ tất cả route còn lại bằng api_auth (xác thực token)
 // router.use(api_auth);
 
-// ——— CRUD cho User ———
-router.get   ('/users',        userCtrl.getList);
-router.get   ('/users/:id',    userCtrl.GetOne);
-router.post  ('/users',        userCtrl.Add);
-router.put   ('/users/:id',    userCtrl.Edit);
-router.delete('/users/:id',    userCtrl.Delete);
+// ——— CRUD cho User ———router.get('/users/:id', userCtrl.GetOne);
+router.get('/users', userCtrl.getList);
+router.get('/users/account/:account_id', userCtrl.getByAccountId); // ✅ Lấy user bằng account_id
+router.get('/users/:id', userCtrl.GetOne); // ✅ Lấy user bằng user_id
+router.post('/users/profile', userCtrl.createUserProfile); // ✅ Tạo profile user
+router.put('/users/:id', userCtrl.Edit);
+router.delete('/users/:id', userCtrl.Delete);
+
+// --- CRUD cho Shippers
+router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
+
 
 // ——— CRUD cho bill ———
-router.get   ('/bills',        billCtrl.getList);
-router.get   ('/GetAllBills',  billCtrl.GetAllBils);
-router.get   ('/bills/:id',    billCtrl.GetOne);
-router.post  ('/bills',        billCtrl.Add);
-router.put   ('/bills/:id',    billCtrl.Edit);
-router.delete('/bills/:id',    billCtrl.Delete);
+router.get('/bills', billCtrl.getList);
+router.get('/GetAllBills', billCtrl.GetAllBils);
+router.get('/bills/:id', billCtrl.GetOne);
+router.post('/bills', billCtrl.Add);
+router.put('/bills/:id', billCtrl.Edit);
+router.delete('/bills/:id', billCtrl.Delete);
 
 // ——— CRUD cho Bill Details ———
-router.get   ('/billdetails',     billdetails.getList);
-router.get   ('/GetAllBillDetails', billdetails.GetAllBillDetail);
-router.get   ('/billdetails/:id', billdetails.GetOne);
-router.post  ('/billdetails',     billdetails.Add);
-router.put   ('/billdetails/:id', billdetails.Edit);
+router.get('/billdetails', billdetails.getList);
+router.get('/GetAllBillDetails', billdetails.GetAllBillDetail);
+router.get('/billdetails/:id', billdetails.GetOne);
+router.post('/billdetails', billdetails.Add);
+router.put('/billdetails/:id', billdetails.Edit);
 router.delete('/billdetails/:id', billdetails.Delete);
-
-// 3️⃣ Route yêu cầu quyền admin
-router.get('/users', userCtrl.getList);
-router.get('/users/:id', userCtrl.GetOne);
-router.post('/users', requireRole('admin'), userCtrl.Add);
-router.put('/users/:id', userCtrl.Edit);
-router.delete('/users/:id', requireRole('admin'), userCtrl.Delete);
 
 
 // Logs
@@ -80,28 +82,27 @@ router.delete('/logs/:id', requireRole('admin'), logCtrl.Delete);
 // Các route còn lại: user và admin đều được truy cập
 
 
-// Addresses
-router.get   ('/addresses',     addressCtrl.getList);
-router.put   ('/set-default/:id',addressCtrl.setDefault);
-router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
-router.put   ('/set-default/:id',addressCtrl.setDefault);
-router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
-router.get   ('/addresses/:id', addressCtrl.GetOne);
-router.post  ('/addresses',     addressCtrl.Add);
-router.put   ('/addresses/:id', addressCtrl.Edit);
-router.delete('/addresses/:id', addressCtrl.Delete);
+// Trong routes/address.js
+router.post('/addresses/first', addressCtrl.createFirstAddress);
+router.post('/addresses', addressCtrl.createAddress);
+router.put('/addresses/:id', addressCtrl.updateAddress);
+router.delete('/addresses/:id', addressCtrl.deleteAddress);
+router.get('/addresses/user/:userId', addressCtrl.getAddressByUserId);
+router.get('/addresses/default/:userId', addressCtrl.getDefaultAddress);
+router.put('/set-default/:id', addressCtrl.setDefault);
+router.get('/GetAllAddress', addressCtrl.GetAllAddress);
+
 
 // ——— CRUD cho Carts ———
-router.get   ('/carts',        cartCtrl.getList);
-router.get   ('/GetAllCarts',  cartCtrl.GetAllCart);
-router.get   ('/carts/:id',    cartCtrl.GetOne);
-router.post  ('/addtocarts',   cartCtrl.Add);
-router.put   ('/carts/:id',    cartCtrl.Edit);
-router.delete('/carts/:id',    cartCtrl.Delete);
+router.get('/carts', cartCtrl.getList);
+router.get('/GetAllCarts', cartCtrl.GetAllCart);
+router.get('/carts/:id', cartCtrl.GetOne);
+router.post('/addtocarts', cartCtrl.Add);
+router.put('/carts/:id', cartCtrl.Edit);
+router.delete('/carts/:id', cartCtrl.Delete);
 // API xóa toàn bộ giỏ hàng theo user_id
 router.delete('/carts/user/:user_id', cartCtrl.DeleteCartByUser);
-// Thêm địa chỉ đầu tiên cho user mới
-router.post('/addresses/first', addressCtrl.AddFirstAddress);
+
 
 
 // Carts
@@ -146,11 +147,11 @@ router.get('/voucher_users/user/:userId', voucher_user.GetVoucherUserByUserId);
 
 
 // ——— CRUD cho Orders ———
-router.get   ('/orders',     orderCtrl.getList);
-router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
-router.get   ('/orders/:id', orderCtrl.GetOne);
-router.post  ('/orders',     orderCtrl.Add);
-router.put   ('/orders/:id', orderCtrl.Edit);
+router.get('/orders', orderCtrl.getList);
+router.get('/GetAllOrders', orderCtrl.GetAllOrder);
+router.get('/orders/:id', orderCtrl.GetOne);
+router.post('/orders', orderCtrl.Add);
+router.put('/orders/:id', orderCtrl.Edit);
 // Orders
 router.get('/orders', orderCtrl.getList);
 router.get('/orders/:id', orderCtrl.GetOne);
@@ -173,11 +174,11 @@ router.put('/payments/:id', paymentCtrl.Edit);
 router.delete('/payments/:id', paymentCtrl.Delete);
 
 // ——— CRUD cho Reviews ———
-router.get   ('/reviews',     reviewCtrl.getList);
-router.get   ('/GetAllReview',    reviewCtrl.GetAllReview);
-router.get   ('/reviews/:id', reviewCtrl.GetOne);
-router.post  ('/reviews',     reviewCtrl.Add);
-router.put   ('/reviews/:id', reviewCtrl.Edit);
+router.get('/reviews', reviewCtrl.getList);
+router.get('/GetAllReview', reviewCtrl.GetAllReview);
+router.get('/reviews/:id', reviewCtrl.GetOne);
+router.post('/reviews', reviewCtrl.Add);
+router.put('/reviews/:id', reviewCtrl.Edit);
 // Reviews
 router.get('/reviews', reviewCtrl.getList);
 router.get('/reviews/:id', reviewCtrl.GetOne);
@@ -207,14 +208,14 @@ router.put('/categories/:id', requireRole('admin'), categoryCtrl.Edit);
 router.delete('/categories/:id', requireRole('admin'), categoryCtrl.Delete);
 
 // ——— CRUD cho Products ———
-router.get   ('/products',     productCtrl.getList);
-router.get   ('/productscategory',     productCtrl.GetListByCategory);
-router.get   ('/productsandcategoryid',productCtrl.getProductAndCategoryName);
-router.get   ('/productsandintergradianID',productCtrl.getProductAndIngredientName);
-router.get   ('/products/:id', productCtrl.GetOne);
-router.get   ('/productbyID/:id', productCtrl.getproductbyID);
-router.post  ('/products',     productCtrl.Add);
-router.put   ('/products/:id', productCtrl.Edit);
+router.get('/products', productCtrl.getList);
+router.get('/productscategory', productCtrl.GetListByCategory);
+router.get('/productsandcategoryid', productCtrl.getProductAndCategoryName);
+router.get('/productsandintergradianID', productCtrl.getProductAndIngredientName);
+router.get('/products/:id', productCtrl.GetOne);
+router.get('/productbyID/:id', productCtrl.getproductbyID);
+router.post('/products', productCtrl.Add);
+router.put('/products/:id', productCtrl.Edit);
 router.delete('/products/:id', productCtrl.Delete);
 // Products
 router.get('/products', productCtrl.getList);
