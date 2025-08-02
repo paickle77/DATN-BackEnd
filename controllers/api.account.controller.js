@@ -1,8 +1,8 @@
 const Account = require('../models/account.model');
 const bcrypt = require('bcryptjs');
 const { sendOTPEmail } = require('../utils/sendMail');
-
-const accountController = {};
+const Base = require('./base.controller');
+const accountController = Base(Account);
 
 // ✅ Gửi OTP để reset mật khẩu
 accountController.sendOTP = async (req, res) => {

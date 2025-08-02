@@ -1,12 +1,11 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'nhom6agile@gmail.com',
     pass: 'xdfi oyra niqp qpcg',
   },
-  // Cải thiện cấu hình
   secure: true,
   tls: {
     rejectUnauthorized: false

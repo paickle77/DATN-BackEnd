@@ -1,5 +1,5 @@
 const User = require('../models/user.model');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const mongoose = require('mongoose'); // ✅ Thêm import mongoose
 const { sendOTPEmail } = require('../utils/sendMail');
 
