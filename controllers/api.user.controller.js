@@ -7,6 +7,20 @@ const Base = require('./base.controller');
 const userController = Base(User);
 const baseController = require('./base.controller')(User);
 
+
+
+const controller = Base(User);
+
+
+userController.GetAllUser = async (req, res) => {
+  try {
+    const data = await User.find()
+      .populate('account_id')
+    res.json({ msg: 'OK', data: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 module.exports = {
     // Giữ nguyên các method cơ bản
     getList: baseController.getList,
@@ -161,4 +175,9 @@ userController.changePassword = async (req, res) => {
 
 
 
-module.exports = userController;
+module.exports = {
+  ...userController,
+  GetAllUser: userController.GetAllUser   // ✅ lấy đúng function vừa định nghĩa
+};
+
+
