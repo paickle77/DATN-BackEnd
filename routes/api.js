@@ -5,33 +5,55 @@ const { api_auth, requireRole } = require('../middleware/api.auth');
  
 
 // Controllers
-const userCtrl = require('../controllers/api.user.controller');
-const addressCtrl = require('../controllers/api.address.controller');
-const cartCtrl = require('../controllers/api.cart.controller');
-const favoriteCtrl = require('../controllers/api.favorite.controller');
-const notificationCtrl = require('../controllers/api.notification.controller');
-const logCtrl = require('../controllers/api.log.controller');
-const voucherCtrl = require('../controllers/api.voucher.controller');
-const orderCtrl = require('../controllers/api.order.controller');
-const orderDetailCtrl = require('../controllers/api.orderDetail.controller');
-const paymentCtrl = require('../controllers/api.payment.controller');
-const reviewCtrl = require('../controllers/api.review.controller');
-const ingredientCtrl = require('../controllers/api.ingredient.controller');
-const branchCtrl = require('../controllers/api.branch.controller');
-const categoryCtrl = require('../controllers/api.category.controller');
-const productCtrl = require('../controllers/api.product.controller');
-const sizeCtrl = require('../controllers/size.controller');
-const authCtrl = require('../controllers/api.auth.controller');
-const billCtrl = require('../controllers/api.bill.controller');
-const billdetails = require('../controllers/api.billdetails.controller');
+const userCtrl           = require('../controllers/api.user.controller');
+const addressCtrl        = require('../controllers/api.address.controller');
+const cartCtrl           = require('../controllers/api.cart.controller');
+const favoriteCtrl       = require('../controllers/api.favorite.controller');
+const notificationCtrl   = require('../controllers/api.notification.controller');
+const logCtrl            = require('../controllers/api.log.controller');
+const voucherCtrl        = require('../controllers/api.voucher.controller');
+const orderCtrl          = require('../controllers/api.order.controller');
+const orderDetailCtrl    = require('../controllers/api.orderDetail.controller');
+const paymentCtrl        = require('../controllers/api.payment.controller');
+const reviewCtrl         = require('../controllers/api.review.controller');
+const supplierCtrl       = require('../controllers/api.supplier.controller'); // Thay đổi từ ingredient
+const branchCtrl         = require('../controllers/api.branch.controller');
+const categoryCtrl       = require('../controllers/api.category.controller');
+const productCtrl        = require('../controllers/api.product.controller');
+const sizeCtrl           =require('../controllers/size.controller');
+const authCtrl           = require('../controllers/api.auth.controller');
+const billCtrl           = require('../controllers/api.bill.controller');
+const billdetails    = require('../controllers/api.billdetails.controller');
 const voucher_user = require('../controllers/api.voucher_user.controller');
 const shipperCtrl        = require('../controllers/api.shipper.controller');
 
-const shipperCtrl = require('../controllers/api.shipper.controller');
-const accountCtrl = require('../controllers/api.account.controller');
-
 // Controllers...
 // (giữ nguyên phần import như cũ)
+const billdetails        = require('../controllers/api.billdetails.controller');
+const voucher_user       = require('../controllers/api.voucher_user.controller');
+const billDetailCtrl     = require('../controllers/api.billdetails.controller');
+const refundCtrl         = require('../controllers/api.refundRequest.controller');
+const shipmentCtrl       = require('../controllers/api.shipment.controller');
+const voucherUserBase    = require('../controllers/api.voucher_user.controller');       // mobile & basic web
+const voucherUserAdmin   = require('../controllers/api.voucherUserAdmin.controller');   // admin-only
+
+// Debug: Kiểm tra controller có methods gì
+console.log('=== DEBUG SUPPLIER CONTROLLER ===');
+console.log('supplierCtrl type:', typeof supplierCtrl);
+console.log('supplierCtrl keys:', Object.keys(supplierCtrl));
+console.log('getActiveSuppliers:', typeof supplierCtrl.getActiveSuppliers);
+console.log('searchByName:', typeof supplierCtrl.searchByName);
+console.log('getStatistics:', typeof supplierCtrl.getStatistics);
+console.log('getExpiringSoon:', typeof supplierCtrl.getExpiringSoon);
+console.log('================================');
+
+// Debug: Kiểm tra product controller
+console.log('=== DEBUG PRODUCT CONTROLLER ===');
+console.log('productCtrl keys:', Object.keys(productCtrl));
+console.log('GetListBySupplier:', typeof productCtrl.GetListBySupplier);
+console.log('GetOutOfStock:', typeof productCtrl.GetOutOfStock);
+console.log('GetExpiringSoon:', typeof productCtrl.GetExpiringSoon);
+console.log('================================');
 
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
@@ -86,12 +108,6 @@ router.put('/bills/:id/assign-shipper', billCtrl.AssignShipper);
 router.post('/bills/CompleteOrder', billCtrl.CompleteOrder);
 router.post('/bills/CancelOrder', billCtrl.CancelOrder);
 
-router.get('/bills', billCtrl.getList);
-router.get('/GetAllBills', billCtrl.GetAllBils);
-router.get('/bills/:id', billCtrl.GetOne);
-router.post('/bills', billCtrl.Add);
-router.put('/bills/:id', billCtrl.Edit);
-router.delete('/bills/:id', billCtrl.Delete);
 
 // ——— CRUD cho Bill Details ———
 router.get('/billdetails', billdetails.getList);
@@ -102,6 +118,21 @@ router.put('/billdetails/:id', billdetails.Edit);
 router.delete('/billdetails/:id', billdetails.Delete);
 
 
+// Bills
+router.get('/bills', billCtrl.getList);
+router.get('/GetAllBills', billCtrl.GetAllBills);
+router.get('/bills/:id', billCtrl.GetOne);
+router.post('/bills', billCtrl.Add);
+router.put('/bills/:id', billCtrl.Edit);
+router.delete('/bills/:id', billCtrl.Delete);
+
+// Bill Details
+router.get('/billdetails', billDetailCtrl.getList);
+router.get('/GetAllBillDetails', billDetailCtrl.GetAllBillDetail);
+router.get('/billdetails/:id', billDetailCtrl.GetOne);
+router.post('/billdetails', billDetailCtrl.Add);
+router.put('/billdetails/:id', billDetailCtrl.Edit);
+router.delete('/billdetails/:id', billDetailCtrl.Delete);
 
 // Logs
 router.get('/logs', requireRole('admin'), logCtrl.getList);
@@ -113,16 +144,16 @@ router.delete('/logs/:id', requireRole('admin'), logCtrl.Delete);
 // Các route còn lại: user và admin đều được truy cập
 
 
-// Trong routes/address.js
-router.post('/addresses/first', addressCtrl.createFirstAddress);
-router.post('/addresses', addressCtrl.createAddress);
-router.put('/addresses/:id', addressCtrl.updateAddress);
-router.delete('/addresses/:id', addressCtrl.deleteAddress);
-router.get('/addresses/user/:userId', addressCtrl.getAddressByUserId);
-router.get('/addresses/default/:userId', addressCtrl.getDefaultAddress);
-router.put('/set-default/:id', addressCtrl.setDefault);
-router.get('/GetAllAddress', addressCtrl.GetAllAddress);
-
+// Addresses
+router.get   ('/addresses',     addressCtrl.getList);
+router.put   ('/set-default/:id',addressCtrl.setDefault);
+router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
+router.put   ('/set-default/:id',addressCtrl.setDefault);
+router.get   ('/GetAllAddress', addressCtrl.GetAllAddress);
+router.get   ('/addresses/:id', addressCtrl.GetOne);
+router.post  ('/addresses',     addressCtrl.Add);
+router.put   ('/addresses/:id', addressCtrl.Edit);
+router.delete('/addresses/:id', addressCtrl.Delete);
 
 // ——— CRUD cho Carts ———
 router.get('/carts', cartCtrl.getList);
@@ -201,6 +232,20 @@ router.get('/orderDetails/:id', orderDetailCtrl.GetOne);
 router.post('/orderDetails', orderDetailCtrl.Add);
 router.put('/orderDetails/:id', orderDetailCtrl.Edit);
 router.delete('/orderDetails/:id', orderDetailCtrl.Delete);
+// ─── Voucher_User (mobile & basic web) ────────────────────────────────────
+router.get(    '/voucher_users',           voucherUserBase.getList);
+router.get(    '/voucher_users/:id',       voucherUserBase.GetOne);
+router.post(   '/voucher_users',           voucherUserBase.Add);
+router.put(    '/voucher_users/:id',       voucherUserBase.Edit);
+router.delete( '/voucher_users/:id',       voucherUserBase.Delete);
+router.get(    '/voucher_users/user/:userId', voucherUserBase.GetVoucherUserByUserId);
+
+// ─── Voucher_User (admin only) ────────────────────────────────────────────
+router.get(    '/admin/voucher_users',         requireRole('admin'), voucherUserAdmin.getList);
+router.get(    '/admin/voucher_users/:id',     requireRole('admin'), voucherUserAdmin.GetOne);
+router.post(   '/admin/voucher_users',         requireRole('admin'), voucherUserAdmin.Add);
+router.put(    '/admin/voucher_users/:id',     requireRole('admin'), voucherUserAdmin.Edit);
+router.delete( '/admin/voucher_users/:id',     requireRole('admin'), voucherUserAdmin.Delete);
 
 // Payments
 router.get('/payments', paymentCtrl.getList);
@@ -228,6 +273,20 @@ router.get('/ingredients/:id', requireRole('admin'), ingredientCtrl.GetOne);
 router.post('/ingredients', requireRole('admin'), ingredientCtrl.Add);
 router.put('/ingredients/:id', requireRole('admin'), ingredientCtrl.Edit);
 router.delete('/ingredients/:id', requireRole('admin'), ingredientCtrl.Delete);
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔄 THAY ĐỔI: Suppliers thay thế Ingredients
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Suppliers — chỉ cho admin
+router.get('/suppliers', requireRole('admin'), supplierCtrl.getList);
+router.get('/suppliers/active', supplierCtrl.getActiveSuppliers); // Public cho dropdown
+router.get('/suppliers/search', requireRole('admin'), supplierCtrl.searchByName);
+router.get('/suppliers/statistics', requireRole('admin'), supplierCtrl.getStatistics);
+router.get('/suppliers/expiring-soon', requireRole('admin'), supplierCtrl.getExpiringSoon);
+router.get('/suppliers/:id', requireRole('admin'), supplierCtrl.GetOne);
+router.post('/suppliers', requireRole('admin'), supplierCtrl.Add);
+router.put('/suppliers/:id', requireRole('admin'), supplierCtrl.Edit);
+router.delete('/suppliers/:id', requireRole('admin'), supplierCtrl.Delete);
 
 // Branches — chỉ cho admin
 router.get('/branches', requireRole('admin'), branchCtrl.getList);
