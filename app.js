@@ -44,7 +44,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json({ limit: '15mb' })); // ⬅️ Cho phép ảnh base64 dài
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-
+app.use('/api', apiRouter);
 
 // Khởi chạy scheduler (cron jobs)
 require('./scheduler');
