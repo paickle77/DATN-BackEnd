@@ -15,8 +15,13 @@ var apiRouter   = require('./routes/api');
 
 // *** Và 1 router duy nhất cho API CRUD ***
 var apiRouter   = require('./routes/api');
+const { log } = require('console');
 
 var app = express();
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+console.log('Static path:', path.join(__dirname, 'uploads'));
 
 // --- Thêm để tắt ETag (và tránh 304) ---
 app.disable('etag');
@@ -39,7 +44,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json({ limit: '15mb' })); // ⬅️ Cho phép ảnh base64 dài
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/api', apiRouter);
+
 
 // Khởi chạy scheduler (cron jobs)
 require('./scheduler');

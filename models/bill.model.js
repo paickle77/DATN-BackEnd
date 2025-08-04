@@ -2,8 +2,9 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const billSchema = new Schema({
-  user_id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  user_id: { type: Schema.Types.ObjectId, required: true },
   address_id: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
+  shipper_id: { type: Schema.Types.ObjectId, ref: 'Shipper', default: null },
   note: { type: String, default: '' },
   shipping_method: { type: String, required: true },
   payment_method: { type: String, required: true },
@@ -13,8 +14,8 @@ const billSchema = new Schema({
   voucher_code: { type: String, default: '' }, // Mã voucher đã sử dụng
   status: { 
     type: String, 
-    enum: ['doing', 'shipping', 'done', 'cancelled'],
-    default: 'doing',
+   enum: ['pending','confirmed', 'ready', 'shipping', 'done', 'cancelled'],
+    default: 'pending',
     required: true 
   },
   created_at: { type: Date, default: Date.now },
