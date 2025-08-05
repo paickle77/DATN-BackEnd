@@ -26,8 +26,6 @@ const billCtrl = require('../controllers/api.bill.controller');
 const billdetails = require('../controllers/api.billdetails.controller');
 const voucher_user = require('../controllers/api.voucher_user.controller');
 const shipperCtrl        = require('../controllers/api.shipper.controller');
-
-const shipperCtrl = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
 
 // Controllers...
@@ -48,12 +46,12 @@ router.post('/change-password', accountCtrl.changePassword); // Đổi password 
 // router.use(api_auth);
 
 // ——— CRUD cho User ———
-router.get   ('/users',        userCtrl.getList);
-router.get   ('/gelallusers',  userCtrl.GetAllUser);
-router.get   ('/users/:id',    userCtrl.GetOne);
-router.post  ('/users',        userCtrl.Add);
-router.put   ('/users/:id',    userCtrl.Edit);
-router.delete('/users/:id',    userCtrl.Delete);
+// router.get   ('/users',        userCtrl.getList);
+// router.get   ('/gelallusers',  userCtrl.GetAllUser);
+// router.get   ('/users/:id',    userCtrl.GetOne);
+// router.post  ('/users',        userCtrl.Add);
+// router.put   ('/users/:id',    userCtrl.Edit);
+// router.delete('/users/:id',    userCtrl.Delete);
 
 // ——— CRUD cho Shipper ———
 router.get   ('/shippers',        shipperCtrl.getList);
@@ -63,6 +61,8 @@ router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
 router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
 router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
 router.delete('/shippers/:id',    shipperCtrl.Delete);
+
+
 // ——— CRUD cho User ———router.get('/users/:id', userCtrl.GetOne);
 router.get('/users', userCtrl.getList);
 router.get('/users/account/:account_id', userCtrl.getByAccountId); // ✅ Lấy user bằng account_id
@@ -87,7 +87,7 @@ router.post('/bills/CompleteOrder', billCtrl.CompleteOrder);
 router.post('/bills/CancelOrder', billCtrl.CancelOrder);
 
 router.get('/bills', billCtrl.getList);
-router.get('/GetAllBills', billCtrl.GetAllBils);
+// router.get('/GetAllBills', billCtrl.GetAllBils);
 router.get('/bills/:id', billCtrl.GetOne);
 router.post('/bills', billCtrl.Add);
 router.put('/bills/:id', billCtrl.Edit);
@@ -184,7 +184,6 @@ router.get   ('/orders/:id', orderCtrl.GetOne);
 router.post  ('/orders',     orderCtrl.Add);
 router.put   ('/orders/:id', orderCtrl.Edit);
 router.get('/orders', orderCtrl.getList);
-router.get('/GetAllOrders', orderCtrl.GetAllOrder);
 router.get('/orders/:id', orderCtrl.GetOne);
 router.post('/orders', orderCtrl.Add);
 router.put('/orders/:id', orderCtrl.Edit);
