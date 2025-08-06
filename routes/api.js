@@ -90,6 +90,7 @@ router.put('/logs/:id', requireRole('admin'), logCtrl.Edit);
 router.delete('/logs/:id', requireRole('admin'), logCtrl.Delete);
 
 // ——— CRUD cho Address ———
+router.get('/addresses', addressCtrl.getList); // 🔥 THÊM DÒNG NÀY
 router.post('/addresses/first', addressCtrl.createFirstAddress);
 router.post('/addresses', addressCtrl.createAddress);
 router.put('/addresses/:id', addressCtrl.updateAddress);
