@@ -21,18 +21,18 @@ module.exports.GetAllCart=async(req,res)=>{
 
 
 //API xóa toàn bộ giỏ hàng theo user_id
-module.exports.DeleteCartByUser = async (req, res) => {
+module.exports.DeleteCartByAccount = async (req, res) => {
   try {
-    const { user_id } = req.params;
+    const { accountId } = req.params;
 
-    if (!user_id) {
-      return res.status(400).json({ msg: 'Thiếu user_id trong URL' });
+    if (!accountId) {
+      return res.status(400).json({ msg: 'Thiếu accountId trong URL' });
     }
 
-    const result = await Cart.deleteMany({ user_id });
+    const result = await Cart.deleteMany({ Account_id: accountId });
 
     res.json({
-      msg: `Đã xóa ${result.deletedCount} sản phẩm trong giỏ hàng của user ${user_id}`
+      msg: `Đã xóa ${result.deletedCount} sản phẩm trong giỏ hàng của account ${accountId}`
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

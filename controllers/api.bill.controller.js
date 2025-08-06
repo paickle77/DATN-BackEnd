@@ -1,14 +1,14 @@
 // controllers/api.bill.controller.js
-const Base       = require('./base.controller');
-const Bill       = require('../models/bill.model');
-const User       = require('../models/user.model');
+const Base = require('./base.controller');
+const Bill = require('../models/bill.model');
+const User = require('../models/user.model');
 const Account = require('../models/account.model');
 const BillDetail = require('../models/BillDetail.model');  // import model chi tiết hóa đơn
 
-const controller = Base(Bill);
+module.exports = Base(Bill);
 
 // GET /GetAllBills — lấy toàn bộ hóa đơn như trước
-controller.GetAllBills = async (req, res) => {
+module.exports.GetAllBills = async (req, res) => {
   try {
 
     // Sau đó mới populate
@@ -16,7 +16,7 @@ controller.GetAllBills = async (req, res) => {
       .populate('user_id')
       .populate('address_id');
 
-    
+
 
     res.json({ msg: 'OK', data: data });
   } catch (err) {
@@ -26,7 +26,7 @@ controller.GetAllBills = async (req, res) => {
 
 
 // GET /bills/:id — override để gắn thêm items
-controller.GetOne = async (req, res) => {
+module.exports.GetOne = async (req, res) => {
   try {
     // 1) Lấy hóa đơn chính
     const bill = await Bill.findById(req.params.id).lean();
@@ -41,10 +41,10 @@ controller.GetOne = async (req, res) => {
 
     // 3) Chuyển thành mảng items giống bên frontend cần
     const items = details.map(d => ({
-      product_id:  d.product_id._id,
+      product_id: d.product_id._id,
       productName: d.product_id.name,
-      quantity:    d.quantity,
-      unitPrice:   d.price
+      quantity: d.quantity,
+      unitPrice: d.price
     }));
 
     // 4) Trả về hóa đơn + items
@@ -55,8 +55,68 @@ controller.GetOne = async (req, res) => {
   }
 };
 
+// POST /CreatePendingBill — tạo đơn hàng kèm chi tiết
+module.exports.CreatePendingBill = async (req, res) => {
+  try {
+    const {
+      Account_id,
+      address_id,
+      shipping_method,
+      payment_method,
+      original_total,
+      total,
+      discount_amount,
+      voucher_code,
+      note,
+      items
+    } = req.body;
+
+    // Kiểm tra dữ liệu bắt buộc
+    if (!Account_id || !address_id || !shipping_method || !payment_method || !original_total || !total) {
+      return res.status(400).json({ msg: 'Thiếu dữ liệu bắt buộc' });
+    }
+
+    // Tạo hóa đơn
+    const bill = await Bill.create({
+      Account_id,
+      address_id,
+      shipping_method,
+      payment_method,
+      original_total,
+      total,
+      discount_amount,
+      voucher_code,
+      note,
+      status: 'pending'
+    });
+
+    // ✅ SỬA: Tạo danh sách chi tiết đơn hàng với đầy đủ thông tin
+    if (Array.isArray(items) && items.length > 0) {
+      for (const item of items) {
+        const billDetailPayload = {
+          bill_id: bill._id,
+          product_id: item.product_id,
+          size: item.size || 'M', // ✅ Đảm bảo có size (lấy từ frontend hoặc mặc định)
+          quantity: item.quantity,
+          price: item.unit_price,
+          total: item.unit_price * item.quantity // ✅ Tính total
+        };
+
+        console.log('📦 Creating BillDetail with payload:', billDetailPayload);
+
+        await BillDetail.create(billDetailPayload);
+      }
+    }
+
+    res.json({ msg: 'Tạo đơn hàng thành công', billId: bill._id });
+  } catch (err) {
+    console.error('❌ Lỗi tạo đơn hàng:', err);
+    res.status(500).json({ msg: 'Lỗi server', error: err.message });
+  }
+};
+
 // PUT /bills/:id/assign-shipper — Gán shipper cho hóa đơn nếu chưa có
-controller.AssignShipper = async (req, res) => {
+module.exports.AssignShipper = async (req, res) => {
   try {
     const { shipper_id } = req.body;
     const { id } = req.params;
@@ -85,7 +145,7 @@ controller.AssignShipper = async (req, res) => {
   }
 };
 
-controller.CompleteOrder = async (req, res) => {
+module.exports.CompleteOrder = async (req, res) => {
   try {
     const { orderId, shipperId } = req.body;
 
@@ -117,7 +177,7 @@ controller.CompleteOrder = async (req, res) => {
   }
 };
 
-controller.CancelOrder = async (req, res) => {
+module.exports.CancelOrder = async (req, res) => {
   try {
     const { orderId, shipperId } = req.body;
 
@@ -138,7 +198,7 @@ controller.CancelOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Đơn hàng đã hoàn thành, không thể hủy' });
     }
 
-    bill.status = 'cancelled';
+    bill.status = 'failed';
     bill.cancelled_at = new Date(); // có thể thêm trường thời gian hủy nếu cần
     await bill.save();
 
@@ -150,4 +210,3 @@ controller.CancelOrder = async (req, res) => {
 };
 
 
-module.exports = controller;

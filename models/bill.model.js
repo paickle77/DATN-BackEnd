@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const billSchema = new Schema({
-  user_id: { type: Schema.Types.ObjectId, required: true },
+  Account_id: { type: Schema.Types.ObjectId, ref: 'Account', required: true },
   address_id: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
   shipper_id: { type: Schema.Types.ObjectId, ref: 'Shipper', default: null },
   note: { type: String, default: '' },

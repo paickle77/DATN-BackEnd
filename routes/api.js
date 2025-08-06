@@ -28,9 +28,6 @@ const voucher_user = require('../controllers/api.voucher_user.controller');
 const shipperCtrl        = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
 
-// Controllers...
-// (giữ nguyên phần import như cũ)
-
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
 router.post('/register', authCtrl.register);
@@ -45,13 +42,6 @@ router.post('/change-password', accountCtrl.changePassword); // Đổi password 
 // 2️⃣ Bảo vệ tất cả route còn lại bằng api_auth (xác thực token)
 // router.use(api_auth);
 
-// ——— CRUD cho User ———
-// router.get   ('/users',        userCtrl.getList);
-// router.get   ('/gelallusers',  userCtrl.GetAllUser);
-// router.get   ('/users/:id',    userCtrl.GetOne);
-// router.post  ('/users',        userCtrl.Add);
-// router.put   ('/users/:id',    userCtrl.Edit);
-// router.delete('/users/:id',    userCtrl.Delete);
 
 // ——— CRUD cho Shipper ———
 router.get   ('/shippers',        shipperCtrl.getList);
@@ -77,21 +67,16 @@ router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
 
 // ——— CRUD cho bill ———
 router.get   ('/bills',        billCtrl.getList);
-router.get   ('/GetAllBills',  billCtrl.GetAllBills);
+router.get   ('/GetAllBills',  billCtrl.GetAllBills); // tên viết hoa có thể đổi thành /bills/all cho chuẩn REST
 router.get   ('/bills/:id',    billCtrl.GetOne);
 router.post  ('/bills',        billCtrl.Add);
 router.put   ('/bills/:id',    billCtrl.Edit);
 router.delete('/bills/:id',    billCtrl.Delete);
-router.put('/bills/:id/assign-shipper', billCtrl.AssignShipper);
-router.post('/bills/CompleteOrder', billCtrl.CompleteOrder);
-router.post('/bills/CancelOrder', billCtrl.CancelOrder);
+router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
+router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
+router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
+router.post  ('/bills/CreatePending',      billCtrl.CreatePendingBill); // đổi path cho thống nhất
 
-router.get('/bills', billCtrl.getList);
-// router.get('/GetAllBills', billCtrl.GetAllBils);
-router.get('/bills/:id', billCtrl.GetOne);
-router.post('/bills', billCtrl.Add);
-router.put('/bills/:id', billCtrl.Edit);
-router.delete('/bills/:id', billCtrl.Delete);
 
 // ——— CRUD cho Bill Details ———
 router.get('/billdetails', billdetails.getList);
@@ -132,19 +117,13 @@ router.post('/addtocarts', cartCtrl.Add);
 router.put('/carts/:id', cartCtrl.Edit);
 router.delete('/carts/:id', cartCtrl.Delete);
 // API xóa toàn bộ giỏ hàng theo user_id
-router.delete('/carts/user/:user_id', cartCtrl.DeleteCartByUser);
+router.delete('/carts/account/:accountId', cartCtrl.DeleteCartByAccount);
 
 
-
-// Carts
-router.get('/carts', cartCtrl.getList);
-router.get('/carts/:id', cartCtrl.GetOne);
-router.post('/carts', cartCtrl.Add);
-router.put('/carts/:id', cartCtrl.Edit);
-router.delete('/carts/:id', cartCtrl.Delete);
 
 // Favorites
 router.get('/favorites', favoriteCtrl.getList);
+router.get('/favorites/account/:accountId', favoriteCtrl.GetFavoriteandNameProduct);
 router.get('/favorites2', favoriteCtrl.GetFavoriteandNameProduct2);
 router.get('/favorites/:id', favoriteCtrl.GetOne);
 router.post('/favorites', favoriteCtrl.Add);
@@ -167,12 +146,12 @@ router.delete('/vouchers/:id', requireRole('admin'), voucherCtrl.Delete);
 
 // Voucher Users
 router.get('/getallvoucher_users', voucher_user.GetAllVoucher_user);
-router.get('/voucher_users', voucher_user.getList);
-router.get('/voucher_users/:id', voucher_user.GetOne);
-router.post('/voucher_users', voucher_user.Add);
-router.put('/voucher_users/:id', voucher_user.Edit);
-router.delete('/voucher_users/:id', voucher_user.Delete);
-router.get('/voucher_users/user/:userId', voucher_user.GetVoucherUserByUserId);
+router.get('/voucher_users', voucher_user.getList); 
+router.get('/voucher_users/:id', voucher_user.GetOne); 
+router.post('/voucher_users', voucher_user.Add); 
+router.put('/voucher_users/:id', voucher_user.Edit); 
+router.delete('/voucher_users/:id', voucher_user.Delete); 
+router.get('/voucher_users/account/:accountId', voucher_user.GetVoucherUserByAccountId);
 
 
 

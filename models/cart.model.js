@@ -1,10 +1,11 @@
 const mongoose = require('./db');
+const Schema = mongoose.Schema;
 
-const CartSchema = new mongoose.Schema({
-  user_id:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  product_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+const CartSchema = new Schema({
+  Account_id: { type: Schema.Types.ObjectId, ref: 'Account', required: true },
+  product_id: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
   quantity:   { type: Number, required: true, min: 1 },
-  size_id: { type: mongoose.Schema.Types.ObjectId, ref: 'size', required: true },
+  size_id: { type: Schema.Types.ObjectId, ref: 'size', required: true },
 }, {
   collection: 'cart'
 });

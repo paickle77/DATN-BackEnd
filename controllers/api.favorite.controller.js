@@ -5,9 +5,9 @@ module.exports = Base(Favorite);
 
 module.exports.GetFavoriteandNameProduct = async (req, res) => {
   try {
-    const { user_id } = req.params;
+    const { Accountid } = req.params;
 
-    const favorite = await Favorite.findOne({ user_id })
+    const favorite = await Favorite.findOne({ Account_id: Accountid })
       .populate('product_id', 'name');  // chỉ lấy field name
 
     if (!favorite) {
@@ -17,8 +17,10 @@ module.exports.GetFavoriteandNameProduct = async (req, res) => {
     // Chuyển product_id từ object thành mảng tên
     const data = {
       _id: favorite._id,
-      user_id: favorite.user_id,
-      product_names: favorite.product_id.map(p => p.name)
+      Account_id: favorite.Account_id,
+      product_names: Array.isArray(favorite.product_id)
+        ? favorite.product_id.map(p => p.name)
+        : [favorite.product_id?.name]
     };
 
     res.json({ msg: 'OK', data });
@@ -27,13 +29,13 @@ module.exports.GetFavoriteandNameProduct = async (req, res) => {
   }
 };
 
-module.exports.GetFavoriteandNameProduct2= async (req,res)=>{
-  try{
-    const data =await Favorite.find()
-    .populate('product_id', '')
-    .exec();
-   res.json({ msg: 'OK', data: data })
-  }catch(err){
-    res.status(500).json({error: err.message});
+module.exports.GetFavoriteandNameProduct2 = async (req, res) => {
+  try {
+    const data = await Favorite.find()
+      .populate('product_id', '')
+      .exec();
+    res.json({ msg: 'OK', data: data })
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 }
