@@ -63,6 +63,7 @@ router.get('/bills/:id', billCtrl.GetOne);
 router.post('/bills', billCtrl.Add);
 router.put('/bills/:id', billCtrl.Edit);
 router.put('/bills/:id/assign-shipper', billCtrl.AssignShipper);
+router.post('/bills/StartShipping', billCtrl.StartShipping); // 🔥 THÊM route mới
 router.post('/bills/CompleteOrder', billCtrl.CompleteOrder);
 router.post('/bills/CancelOrder', billCtrl.CancelOrder);
 router.delete('/bills/:id', billCtrl.Delete);
