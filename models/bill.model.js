@@ -14,7 +14,7 @@ const billSchema = new Schema({
   voucher_code: { type: String, default: '' }, // Mã voucher đã sử dụng
   status: { 
     type: String, 
-   enum: ['pending','confirmed', 'ready', 'shipping', 'done', 'cancelled'],
+   enum: ['pending','confirmed', 'ready', 'shipping', 'done', 'cancelled','failed'],
     default: 'pending',
     required: true 
   },
