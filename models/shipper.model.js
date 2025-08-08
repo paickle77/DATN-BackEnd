@@ -7,7 +7,9 @@ const ShipperSchema = new mongoose.Schema({
   image:         { type: String, default: '' },
   license_number: { type: String },
   vehicle_type:   { type: String },
-  is_online:      { type: Boolean, default: false },
+  is_online:      {  type: String,
+    enum: ['offline', 'online', 'busy'],
+    default: 'offline' },
 }, {
   collection: 'shippers',
   timestamps: true

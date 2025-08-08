@@ -21,6 +21,7 @@ const billSchema = new Schema({
   created_at: { type: Date, default: Date.now },
   payment_confirmed_at: { type: Date }, // Thời gian xác nhận thanh toán
   delivered_at: { type: Date }, // Thời gian giao hàng thành công
+  proof_images: { type: String, default: '' }, // Hình ảnh chứng minh giao hàng (nếu có)
 }, { timestamps: true });
 
 // Index để tìm kiếm nhanh hơn
