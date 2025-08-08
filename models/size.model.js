@@ -27,4 +27,4 @@ const SizeSchema = new mongoose.Schema({
 // Tạo index để tối ưu query
 SizeSchema.index({ product_id: 1, size: 1 });
 
-module.exports = mongoose.model('size', SizeSchema); 
+module.exports = mongoose.model('sizes', SizeSchema); 

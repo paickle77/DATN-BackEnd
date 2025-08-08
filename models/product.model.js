@@ -19,7 +19,7 @@ const ProductSchema = new mongoose.Schema({
 
 // ✅ Middleware để tự động tính stock từ sizes
 ProductSchema.methods.updateStockFromSizes = async function() {
-  const Size = mongoose.model('Size');
+  const Size = mongoose.model('sizes');
   const sizes = await Size.find({ product_id: this._id });
   const totalStock = sizes.reduce((sum, size) => sum + size.quantity, 0);
   this.stock = totalStock;

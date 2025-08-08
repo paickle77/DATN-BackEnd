@@ -38,7 +38,7 @@ router.post('/send-otp', accountCtrl.sendOTP);             // Gửi OTP reset pa
 router.post('/verify-otp', accountCtrl.verifyOTP);         // Xác thực OTP (optional)
 router.post('/reset-password', accountCtrl.resetPassword); // Reset password với OTP
 router.post('/change-password', accountCtrl.changePassword); // Đổi password khi đã login
-
+router.get ('/account/:id',    accountCtrl.GetOne);
 // 2️⃣ Bảo vệ tất cả route còn lại bằng api_auth (xác thực token)
 // router.use(api_auth);
 
@@ -80,6 +80,7 @@ router.post  ('/bills/CreatePending',      billCtrl.CreatePendingBill); // đổ
 
 // ——— CRUD cho Bill Details ———
 router.get('/billdetails', billdetails.getList);
+router.get('/billdetails/by-bill/:bill_id', billdetails.GetBillDetailsByBillId);
 router.get('/GetAllBillDetails', billdetails.GetAllBillDetail);
 router.get('/billdetails/:id', billdetails.GetOne);
 router.post('/billdetails', billdetails.Add);
@@ -152,6 +153,8 @@ router.post('/voucher_users', voucher_user.Add);
 router.put('/voucher_users/:id', voucher_user.Edit); 
 router.delete('/voucher_users/:id', voucher_user.Delete); 
 router.get('/voucher_users/account/:accountId', voucher_user.GetVoucherUserByAccountId);
+router.put('/voucher_user/by-voucher/:voucher_id/status', voucher_user.UpdateVoucherUserStatus);
+
 
 
 
@@ -246,6 +249,7 @@ router.get('/products/search', productCtrl.SearchByName);
 
 // Sizes — chỉ cho admin
 router.get('/sizes', sizeCtrl.getList);
+router.post('/decrease-quantity', sizeCtrl.DecreaseQuantity);
 router.get('/sizes/:id', sizeCtrl.GetOne);
 router.post('/sizes', requireRole('admin'), sizeCtrl.Add);
 router.put('/sizes/:id', requireRole('admin'), sizeCtrl.Edit);
