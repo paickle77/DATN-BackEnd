@@ -13,7 +13,7 @@ module.exports.GetAllBills = async (req, res) => {
 
     // Sau đó mới populate
     const data = await Bill.find()
-      .populate('user_id')
+      .populate('Account_id',) // Chỉ lấy email và tên đầy đủ của người dùng
       .populate('address_id');
 
 
@@ -147,7 +147,7 @@ module.exports.AssignShipper = async (req, res) => {
 
 module.exports.CompleteOrder = async (req, res) => {
   try {
-    const { orderId, shipperId } = req.body;
+    const { orderId, shipperId, proof_images  } = req.body;
 
     if (!orderId || !shipperId) {
       return res.status(400).json({ success: false, message: 'Thiếu orderId hoặc shipperId' });
@@ -166,11 +166,17 @@ module.exports.CompleteOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Đơn hàng đã được hoàn thành trước đó' });
     }
 
-    bill.status = 'done';
-    bill.completed_at = new Date(); // có thể thêm trường thời gian hoàn thành nếu cần
-    await bill.save();
+    const updatedBill = await Bill.findByIdAndUpdate(
+      orderId,
+      {
+        status: 'done',
+        delivered_at: new Date(),
+        proof_images: proof_images
+      },
+      { new: true } // trả về document đã cập nhật
+    );
 
-    res.json({ success: true, message: 'Hoàn thành đơn hàng thành công', data: bill });
+    res.json({ success: true, message: 'Hoàn thành đơn hàng thành công', data: updatedBill });
   } catch (error) {
     console.error('CompleteOrder error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
@@ -179,7 +185,7 @@ module.exports.CompleteOrder = async (req, res) => {
 
 module.exports.CancelOrder = async (req, res) => {
   try {
-    const { orderId, shipperId } = req.body;
+    const { orderId, shipperId,  proof_images } = req.body;
 
     if (!orderId || !shipperId) {
       return res.status(400).json({ success: false, message: 'Thiếu orderId hoặc shipperId' });
@@ -198,9 +204,17 @@ module.exports.CancelOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Đơn hàng đã hoàn thành, không thể hủy' });
     }
 
-    bill.status = 'failed';
-    bill.cancelled_at = new Date(); // có thể thêm trường thời gian hủy nếu cần
-    await bill.save();
+    const updatedBill = await Bill.findByIdAndUpdate(
+      orderId,
+      {
+        status: 'failed',
+        cancelled_at: new Date(),
+        proof_images: proof_images
+      },
+      { new: true } // trả về document đã cập nhật
+    );
+
+    res.json({ success: true, message: 'Hoàn thành đơn hàng thành công', data: updatedBill });
 
     res.json({ success: true, message: 'Đơn hàng đã được hủy thành công', data: bill });
   } catch (error) {

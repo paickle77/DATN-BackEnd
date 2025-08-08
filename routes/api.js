@@ -48,7 +48,7 @@ router.get   ('/shippers',        shipperCtrl.getList);
 router.get   ('/shippers/:id',    shipperCtrl.GetOne);
 router.get('/shippers/:account_id', shipperCtrl.getShipperByAccountId);
 router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
-router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
+router.put('/shippers/:id', shipperCtrl.Edit);
 router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
 router.delete('/shippers/:id',    shipperCtrl.Delete);
 

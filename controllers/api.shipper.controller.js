@@ -83,20 +83,18 @@ module.exports.Edit = async (req, res) => {
       license_number: req.body.license_number,
     };
 
-    if (req.file) {
-      updateFields.image = `/uploads/${req.file.filename}`;
+    // Nếu client gửi base64
+    if (req.body.image) {
+      updateFields.image = req.body.image; // Lưu nguyên chuỗi base64
     }
 
-    console.log('🖼️ req.file:', req.file);
     console.log('📨 req.body:', req.body);
 
-
     const updated = await Shipper.findByIdAndUpdate(
-      req.params.id ,
+      req.params.id,
       updateFields,
       { new: true, runValidators: true }
     );
-
 
     if (!updated) {
       return res.status(404).json({ msg: 'Không tìm thấy shipper' });
@@ -108,6 +106,7 @@ module.exports.Edit = async (req, res) => {
     res.status(400).json({ msg: err.message });
   }
 };
+
 
 module.exports.EditByAccountId = async (req, res) => {
   try {
@@ -175,7 +174,7 @@ module.exports.updateOnlineStatus = async (req, res) => {
   try {
     const { _id, is_online } = req.body;
 
-    if (!_id || typeof is_online !== 'boolean') {
+    if (!_id || typeof is_online !== 'string' || !['offline', 'online', 'busy'].includes(is_online)) {
       return res.status(400).json({ message: 'Thiếu account_id hoặc is_online không hợp lệ' });
     }
 
