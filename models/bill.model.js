@@ -12,11 +12,20 @@ const billSchema = new Schema({
   original_total: { type: Number, required: true }, // Tổng tiền trước giảm giá
   discount_amount: { type: Number, default: 0 }, // Số tiền giảm giá
   voucher_code: { type: String, default: '' }, // Mã voucher đã sử dụng
-  status: { 
-    type: String, 
-   enum: ['pending','confirmed', 'ready', 'shipping', 'done', 'cancelled','failed'],
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'ready', 'shipping', 'done', 'cancelled', 'failed'],
     default: 'pending',
-    required: true 
+    required: true
+  },
+  shipping_fee: { type: Number, default: 0 },
+  address_snapshot: {
+    name: String,
+    phone: String,
+    detail: String,
+    ward: String,
+    district: String,
+    city: String
   },
   created_at: { type: Date, default: Date.now },
   payment_confirmed_at: { type: Date }, // Thời gian xác nhận thanh toán
