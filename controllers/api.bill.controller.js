@@ -1,111 +1,148 @@
-// controllers/api.bill.controller.js
+// controllers/api.bill.controller.js - 🔥 FIXED VERSION
 const Base       = require('./base.controller');
 const Bill       = require('../models/bill.model');
 const User       = require('../models/user.model');
 const Account = require('../models/account.model');
 const BillDetail = require('../models/BillDetail.model');
 const Address = require('../models/address.model');
-const Shipper = require('../models/shipper.model'); // 🔥 THÊM import Shipper
+const Shipper = require('../models/shipper.model');
 
 const controller = Base(Bill);
 
-// 🔥 SỬA: GET /GetAllBills — lấy toàn bộ hóa đơn với populate đầy đủ
+// 🔥 FIXED: GetAllBills với populate user thông qua account_id
 controller.GetAllBills = async (req, res) => {
     try {
+        const enrich = req.query.enrich === 'true';
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const sort = req.query.sort || '-created_at';
+
+        // 🔥 STEP 1: Lấy tất cả bills
         const bills = await Bill.find()
+            .select('user_id account_id address_id shipper_id status total created_at voucher_code')
             .populate('address_id')
-            .populate('shipper_id')
+            .populate('shipper_id', 'full_name name phone is_online')
+            .sort(sort)
+            .skip((page - 1) * limit)
+            .limit(limit)
             .lean();
 
-        // 🔥 SỬA: Manual populate user data từ user_id
-        const enrichedBills = await Promise.all(bills.map(async (bill) => {
-            let customerInfo = null;
-            let shipperInfo = null;
+        let responseData = bills;
 
-            // Tìm user từ user_id
-            if (bill.user_id) {
-                customerInfo = await User.findById(bill.user_id).lean();
-            }
+        if (enrich) {
+            // 🔥 STEP 2: Lấy thông tin user cho từng bill
+            const enrichedBills = await Promise.all(bills.map(async (bill) => {
+                let customerName = 'Khách hàng không rõ';
+                let customerPhone = '';
+                
+                try {
+                    let user = null;
+                    
+                    // Try 1: Tìm user qua user_id trực tiếp (nếu có)
+                    if (bill.user_id) {
+                        user = await User.findById(bill.user_id).select('name phone').lean();
+                    }
+                    
+                    // Try 2: Tìm user qua account_id hoặc Account_id (handle cả 2 case)
+                    if (!user && (bill.account_id || bill.Account_id)) {
+                        const accountId = bill.account_id || bill.Account_id;
+                        user = await User.findOne({ account_id: accountId }).select('name phone').lean();
+                    }
+                    
+                    // Try 3: Tìm tất cả users và match với account từ bill
+                    if (!user) {
+                        const allUsers = await User.find().select('name phone account_id').lean();
+                        // Có thể cần logic phức tạp hơn tùy vào cách bạn liên kết bill với user
+                        console.log('⚠️ Cannot find user for bill:', bill._id);
+                    }
+                    
+                    if (user) {
+                        customerName = user.name || 'Khách hàng không rõ';
+                        customerPhone = user.phone || '';
+                    }
+                    
+                } catch (userErr) {
+                    console.error('❌ Error finding user for bill:', bill._id, userErr.message);
+                }
 
-            // Lấy thông tin shipper nếu có
-            if (bill.shipper_id) {
-                shipperInfo = await Shipper.findById(bill.shipper_id).lean();
-            }
+                return {
+                    ...bill,
+                    customerName,
+                    customerPhone,
+                    shipperName: (bill.status === 'shipping' || bill.status === 'done') && bill.shipper_id ? 
+                                 (bill.shipper_id.full_name || bill.shipper_id.name || 'Shipper không rõ') : 
+                                 (bill.status === 'ready' && bill.shipper_id ? 'Đã gán shipper' : '—'),
+                    addressString: formatAddress(bill.address_id),
+                    voucherDisplayCode: bill.voucher_code || '—',
+                    statusDisplay: getStatusDisplay(bill.status),
+                    created_date: bill.created_at ? new Date(bill.created_at).toLocaleDateString('vi-VN') : '',
+                    total_formatted: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(bill.total || 0)
+                };
+            }));
 
-            return {
-                ...bill,
-                // Format customer info
-                customerName: customerInfo?.name || 
-                             customerInfo?.full_name || 
-                             `User ID: ${bill.user_id}`,
-                customerPhone: customerInfo?.phone || '',
-                
-                // Format shipper info - chỉ hiển thị khi đang giao hoặc hoàn thành
-                shipperName: (bill.status === 'shipping' || bill.status === 'done') && shipperInfo ? 
-                           (shipperInfo.full_name || shipperInfo.name || 'Shipper không rõ') : 
-                           (bill.status === 'ready' && bill.shipper_id ? 'Đã gán shipper' : '—'),
-                
-                // Format address
-                addressString: formatAddress(bill.address_id),
-                
-                // Format other fields
-                voucherDisplayCode: bill.voucher_code || '—',
-                statusDisplay: getStatusDisplay(bill.status),
-                
-                // Thêm thông tin bổ sung
-                created_date: bill.created_at ? new Date(bill.created_at).toLocaleDateString('vi-VN') : '',
-                total_formatted: new Intl.NumberFormat('vi-VN', { 
-                    style: 'currency', 
-                    currency: 'VND' 
-                }).format(bill.total || 0)
-            };
-        }));
+            responseData = enrichedBills;
+        }
 
         res.json({ 
             success: true, 
             msg: 'OK', 
-            data: enrichedBills 
+            data: responseData, 
+            total: await Bill.countDocuments(),
+            debug: enrich ? {
+                message: 'Bills enriched with user lookup',
+                sampleBill: responseData[0] ? {
+                    id: responseData[0]._id,
+                    customerName: responseData[0].customerName,
+                    hasUserInfo: !!(responseData[0].customerName !== 'Khách hàng không rõ')
+                } : null
+            } : undefined
         });
     } catch (err) {
         console.error('❌ GetAllBills Error:', err);
-        res.status(500).json({ 
-            success: false, 
-            msg: 'Lỗi khi lấy danh sách hóa đơn: ' + err.message 
-        });
+        res.status(500).json({ success: false, msg: 'Lỗi khi lấy danh sách hóa đơn: ' + err.message });
     }
 };
 
-// 🔥 SỬA: GET /bills/:id — override để gắn thêm items với error handling tốt hơn
+// 🔥 FIXED: GetOne với user lookup
 controller.GetOne = async (req, res) => {
     try {
+        const enrich = req.query.enrich === 'true';
+
         const bill = await Bill.findById(req.params.id)
             .populate('address_id')
+            .populate('shipper_id', 'full_name name phone is_online')
             .lean();
 
         if (!bill) {
-            return res.status(404).json({ 
-                success: false, 
-                msg: 'Hóa đơn không tồn tại' 
-            });
+            return res.status(404).json({ success: false, msg: 'Hóa đơn không tồn tại' });
         }
 
-        // Lấy thông tin user
-        let customerInfo = null;
-        if (bill.user_id) {
-            customerInfo = await User.findById(bill.user_id).lean();
+        // 🔥 MANUAL USER LOOKUP
+        let customerName = 'Khách hàng không rõ';
+        let customerPhone = '';
+        
+        try {
+            let user = null;
+            
+            if (bill.user_id) {
+                user = await User.findById(bill.user_id).select('name phone').lean();
+            } else if (bill.account_id || bill.Account_id) {
+                const accountId = bill.account_id || bill.Account_id;
+                user = await User.findOne({ account_id: accountId }).select('name phone').lean();
+            }
+            
+            if (user) {
+                customerName = user.name || 'Khách hàng không rõ';
+                customerPhone = user.phone || '';
+            }
+        } catch (userErr) {
+            console.error('❌ Error finding user:', userErr);
         }
 
-        // Lấy thông tin shipper
-        let shipperInfo = null;
-        if (bill.shipper_id) {
-            shipperInfo = await Shipper.findById(bill.shipper_id).lean();
-        }
-
-        // Lấy chi tiết đơn hàng
+        // Fetch items
         const details = await BillDetail.find({ bill_id: req.params.id })
             .populate('product_id', 'name price')
             .lean();
-
         const items = details.map(d => ({
             product_id: d.product_id?._id || d.product_id,
             productName: d.product_id?.name || 'Sản phẩm không tồn tại',
@@ -115,49 +152,104 @@ controller.GetOne = async (req, res) => {
             total: d.total || (d.quantity * d.price) || 0
         }));
 
-        const enrichedBill = {
-            ...bill,
-            items,
-            
-            // Customer info
-            customerName: customerInfo?.name || 
-                         customerInfo?.full_name || 
-                         `User ID: ${bill.user_id}`,
-            customerPhone: customerInfo?.phone || '',
-            customerEmail: customerInfo?.email || '',
-            
-            // Shipper info
-            shipperName: shipperInfo?.full_name || 
-                        shipperInfo?.name || 
-                        (bill.shipper_id ? 'Shipper không rõ' : '—'),
-            shipperPhone: shipperInfo?.phone || '',
-            
-            // Address
-            addressString: formatAddress(bill.address_id),
-            
-            // Other fields
-            voucherDisplayCode: bill.voucher_code || '—',
-            statusDisplay: getStatusDisplay(bill.status),
-            created_date: bill.created_at ? new Date(bill.created_at).toLocaleDateString('vi-VN') : '',
-            total_formatted: new Intl.NumberFormat('vi-VN', { 
-                style: 'currency', 
-                currency: 'VND' 
-            }).format(bill.total || 0)
-        };
+        let responseData = { ...bill, items, customerName, customerPhone };
 
-        res.json({ 
-            success: true, 
-            msg: 'OK', 
-            data: enrichedBill 
-        });
+        if (enrich) {
+            responseData = {
+                ...responseData,
+                shipperName: bill.shipper_id?.full_name || bill.shipper_id?.name || (bill.shipper_id ? 'Shipper không rõ' : '—'),
+                shipperPhone: bill.shipper_id?.phone || '',
+                addressString: formatAddress(bill.address_id),
+                voucherDisplayCode: bill.voucher_code || '—',
+                statusDisplay: getStatusDisplay(bill.status),
+                created_date: bill.created_at ? new Date(bill.created_at).toLocaleDateString('vi-VN') : '',
+                total_formatted: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(bill.total || 0)
+            };
+        }
+
+        res.json({ success: true, msg: 'OK', data: responseData });
     } catch (err) {
         console.error('❌ GetOne Bill Error:', err);
-        res.status(500).json({ 
-            success: false, 
-            msg: 'Lỗi khi lấy chi tiết hóa đơn: ' + err.message 
-        });
+        res.status(500).json({ success: false, msg: 'Lỗi khi lấy chi tiết hóa đơn: ' + err.message });
     }
 };
+
+// 🔥 THÊM: DEBUG API để kiểm tra dữ liệu
+controller.DebugBillData = async (req, res) => {
+    try {
+        const bills = await Bill.find().limit(3).lean();
+        const users = await User.find().limit(5).lean();
+        const accounts = await Account.find().limit(5).lean();
+        
+        console.log('📊 DEBUG DATA:');
+        console.log('Bills sample:', bills.map(b => ({ 
+            id: b._id, 
+            user_id: b.user_id, 
+            account_id: b.account_id 
+        })));
+        console.log('Users sample:', users.map(u => ({ 
+            id: u._id, 
+            name: u.name, 
+            account_id: u.account_id 
+        })));
+        console.log('Accounts sample:', accounts.map(a => ({ 
+            id: a._id, 
+            email: a.email 
+        })));
+        
+        res.json({
+            success: true,
+            debug: {
+                bills: bills.length,
+                users: users.length,
+                accounts: accounts.length,
+                billSample: bills[0],
+                userSample: users[0],
+                relationshipIssue: 'Bills có user_id/account_id không? Users có account_id không?'
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+// Helper functions (giữ nguyên)
+function formatAddress(addressInfo) {
+    if (!addressInfo) return 'Chưa có địa chỉ giao hàng';
+    
+    if (typeof addressInfo === 'object') {
+        const parts = [
+            addressInfo.detail_address || addressInfo.address || addressInfo.street,
+            addressInfo.ward || addressInfo.ward_name,
+            addressInfo.district || addressInfo.district_name,
+            addressInfo.city || addressInfo.province || addressInfo.province_name
+        ].filter(Boolean);
+        
+        if (parts.length > 0) {
+            return parts.join(', ');
+        }
+    }
+    
+    if (typeof addressInfo === 'string') {
+        return addressInfo;
+    }
+    
+    return 'Địa chỉ không đầy đủ';
+}
+
+function getStatusDisplay(status) {
+    const statusMap = {
+        'pending': 'Chờ xác nhận',
+        'confirmed': 'Đã xác nhận',
+        'ready': 'Sẵn sàng giao',
+        'shipping': 'Đang giao',
+        'done': 'Hoàn thành',
+        'cancelled': 'Đã hủy',
+        'failed': 'Thất bại'
+    };
+    
+    return statusMap[status] || status;
+}
 
 // 🔥 SỬA: PUT /bills/:id/assign-shipper — Gán shipper với logic cập nhật trạng thái
 controller.AssignShipper = async (req, res) => {
