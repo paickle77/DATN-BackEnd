@@ -14,7 +14,6 @@ const voucherCtrl = require('../controllers/api.voucher.controller');
 const paymentCtrl = require('../controllers/api.payment.controller');
 const reviewCtrl = require('../controllers/api.review.controller');
 const supplierCtrl = require('../controllers/api.supplier.controller');
-// const branchCtrl = require('../controllers/api.branch.controller');
 const categoryCtrl = require('../controllers/api.category.controller');
 const productCtrl = require('../controllers/api.product.controller');
 const sizeCtrl = require('../controllers/size.controller');
@@ -40,12 +39,21 @@ router.post('/change-password', accountCtrl.changePassword); // Đổi password 
 // router.use(api_auth);
 
 // ——— CRUD cho User ———
+// ✅ ĐẶT CÁC ROUTE CỤ THỂ TRƯỚC CÁC ROUTE DYNAMIC
+router.get('/users/with-accounts', userCtrl.getCustomersWithDetails); // Lấy khách hàng với thông tin đầy đủ
+router.get('/users/stats', userCtrl.getCustomerStats); // Thống kê khách hàng
+
 router.get('/users', userCtrl.getList);
 router.get('/users/account/:account_id', userCtrl.getByAccountId); // ✅ Lấy user bằng account_id
 router.get('/users/:id', userCtrl.GetOne); // ✅ Lấy user bằng user_id
 router.post('/users/profile', userCtrl.createUserProfile); // ✅ Tạo profile user
 router.put('/users/:id', userCtrl.Edit);
 router.delete('/users/:id', userCtrl.Delete);
+
+// ✅ Route khóa/mở khóa account CHỈ CHO WEB ADMIN
+router.put('/accounts/:id/lock', accountCtrl.lockAccount); // Khóa tài khoản
+router.put('/accounts/:id/unlock', accountCtrl.unlockAccount); // Mở khóa tài khoản
+router.put('/users/:userId/toggle-lock', userCtrl.toggleCustomerLock); // Khóa/mở khóa tài khoản
 
 // ——— CRUD cho Shipper ———
 router.get('/shippers', shipperCtrl.getList);
@@ -155,20 +163,6 @@ router.get('/reviews/:id', reviewCtrl.GetOne);
 router.post('/reviews', reviewCtrl.Add);
 router.put('/reviews/:id', reviewCtrl.Edit);
 router.delete('/reviews/:id', reviewCtrl.Delete);
-
-// // ——— CRUD cho Ingredients (Admin only) ———
-// router.get('/ingredients', requireRole('admin'), ingredientCtrl.getList);
-// router.get('/ingredients/:id', requireRole('admin'), ingredientCtrl.GetOne);
-// router.post('/ingredients', requireRole('admin'), ingredientCtrl.Add);
-// router.put('/ingredients/:id', requireRole('admin'), ingredientCtrl.Edit);
-// router.delete('/ingredients/:id', requireRole('admin'), ingredientCtrl.Delete);
-
-// // ——— CRUD cho Branches (Admin only) ———
-// router.get('/branches', requireRole('admin'), branchCtrl.getList);
-// router.get('/branches/:id', requireRole('admin'), branchCtrl.GetOne);
-// router.post('/branches', requireRole('admin'), branchCtrl.Add);
-// router.put('/branches/:id', requireRole('admin'), branchCtrl.Edit);
-// router.delete('/branches/:id', requireRole('admin'), branchCtrl.Delete);
 
 // ——— CRUD cho Categories ———
 router.get('/categories', categoryCtrl.getList);
