@@ -1,15 +1,14 @@
-// controllers/api.bill.controller.js - 🔥 FIXED VERSION
+// controllers/api.bill.controller.js - 🔥 UPDATED VERSION với address_snapshot
 const Base       = require('./base.controller');
 const Bill       = require('../models/bill.model');
 const User       = require('../models/user.model');
 const Account = require('../models/account.model');
 const BillDetail = require('../models/BillDetail.model');
-const Address = require('../models/address.model');
 const Shipper = require('../models/shipper.model');
 
 const controller = Base(Bill);
 
-// 🔥 FIXED: GetAllBills với populate user thông qua account_id
+// 🔥 UPDATED: GetAllBills với address_snapshot và tính toán tiền chính xác
 controller.GetAllBills = async (req, res) => {
     try {
         const enrich = req.query.enrich === 'true';
@@ -17,10 +16,9 @@ controller.GetAllBills = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const sort = req.query.sort || '-created_at';
 
-        // 🔥 STEP 1: Lấy tất cả bills
+        // 🔥 STEP 1: Lấy bills với các trường cần thiết
         const bills = await Bill.find()
-            .select('user_id account_id address_id shipper_id status total created_at voucher_code')
-            .populate('address_id')
+            .select('user_id Account_id address_snapshot shipper_id status total original_total discount_amount shipping_fee shipping_method voucher_code payment_method created_at')
             .populate('shipper_id', 'full_name name phone is_online')
             .sort(sort)
             .skip((page - 1) * limit)
@@ -30,7 +28,7 @@ controller.GetAllBills = async (req, res) => {
         let responseData = bills;
 
         if (enrich) {
-            // 🔥 STEP 2: Lấy thông tin user cho từng bill
+            // 🔥 STEP 2: Enrich với thông tin user và format dữ liệu
             const enrichedBills = await Promise.all(bills.map(async (bill) => {
                 let customerName = 'Khách hàng không rõ';
                 let customerPhone = '';
@@ -38,22 +36,14 @@ controller.GetAllBills = async (req, res) => {
                 try {
                     let user = null;
                     
-                    // Try 1: Tìm user qua user_id trực tiếp (nếu có)
+                    // Try 1: Tìm user qua user_id trực tiếp
                     if (bill.user_id) {
                         user = await User.findById(bill.user_id).select('name phone').lean();
                     }
                     
-                    // Try 2: Tìm user qua account_id hoặc Account_id (handle cả 2 case)
-                    if (!user && (bill.account_id || bill.Account_id)) {
-                        const accountId = bill.account_id || bill.Account_id;
-                        user = await User.findOne({ account_id: accountId }).select('name phone').lean();
-                    }
-                    
-                    // Try 3: Tìm tất cả users và match với account từ bill
-                    if (!user) {
-                        const allUsers = await User.find().select('name phone account_id').lean();
-                        // Có thể cần logic phức tạp hơn tùy vào cách bạn liên kết bill với user
-                        console.log('⚠️ Cannot find user for bill:', bill._id);
+                    // Try 2: Tìm user qua Account_id
+                    if (!user && bill.Account_id) {
+                        user = await User.findOne({ account_id: bill.Account_id }).select('name phone').lean();
                     }
                     
                     if (user) {
@@ -65,18 +55,46 @@ controller.GetAllBills = async (req, res) => {
                     console.error('❌ Error finding user for bill:', bill._id, userErr.message);
                 }
 
+                // 🔥 SỬ DỤNG address_snapshot thay vì lookup address
+                const deliveryInfo = getDeliveryInfo(bill.address_snapshot);
+                
+                // 🔥 TÍNH TOÁN TIỀN CHÍNH XÁC
+                const financialBreakdown = calculateBillFinances(bill);
+
                 return {
                     ...bill,
+                    // Customer info
                     customerName,
                     customerPhone,
+                    
+                    // Delivery info từ address_snapshot
+                    deliveryName: deliveryInfo.name,
+                    deliveryPhone: deliveryInfo.phone,
+                    deliveryAddress: deliveryInfo.address,
+                    
+                    // Financial breakdown
+                    subtotal: financialBreakdown.subtotal,
+                    shippingFee: financialBreakdown.shippingFee,
+                    discountAmount: financialBreakdown.discountAmount,
+                    finalTotal: financialBreakdown.finalTotal,
+                    
+                    // Shipper info
                     shipperName: (bill.status === 'shipping' || bill.status === 'done') && bill.shipper_id ? 
                                  (bill.shipper_id.full_name || bill.shipper_id.name || 'Shipper không rõ') : 
                                  (bill.status === 'ready' && bill.shipper_id ? 'Đã gán shipper' : '—'),
-                    addressString: formatAddress(bill.address_id),
+                    
+                    // Display formats
+                    shippingMethodDisplay: getShippingMethodDisplay(bill.shipping_method),
+                    paymentMethodDisplay: getPaymentMethodDisplay(bill.payment_method),
                     voucherDisplayCode: bill.voucher_code || '—',
                     statusDisplay: getStatusDisplay(bill.status),
                     created_date: bill.created_at ? new Date(bill.created_at).toLocaleDateString('vi-VN') : '',
-                    total_formatted: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(bill.total || 0)
+                    
+                    // Formatted money
+                    subtotal_formatted: formatMoney(financialBreakdown.subtotal),
+                    shipping_fee_formatted: formatMoney(financialBreakdown.shippingFee),
+                    discount_formatted: formatMoney(financialBreakdown.discountAmount),
+                    total_formatted: formatMoney(financialBreakdown.finalTotal)
                 };
             }));
 
@@ -88,12 +106,21 @@ controller.GetAllBills = async (req, res) => {
             msg: 'OK', 
             data: responseData, 
             total: await Bill.countDocuments(),
+            pagination: {
+                page,
+                limit,
+                totalPages: Math.ceil(await Bill.countDocuments() / limit)
+            },
             debug: enrich ? {
-                message: 'Bills enriched with user lookup',
+                message: 'Bills enriched with address_snapshot and financial breakdown',
                 sampleBill: responseData[0] ? {
                     id: responseData[0]._id,
                     customerName: responseData[0].customerName,
-                    hasUserInfo: !!(responseData[0].customerName !== 'Khách hàng không rõ')
+                    deliveryName: responseData[0].deliveryName,
+                    deliveryAddress: responseData[0].deliveryAddress,
+                    subtotal: responseData[0].subtotal_formatted,
+                    shippingFee: responseData[0].shipping_fee_formatted,
+                    total: responseData[0].total_formatted
                 } : null
             } : undefined
         });
@@ -103,13 +130,12 @@ controller.GetAllBills = async (req, res) => {
     }
 };
 
-// 🔥 FIXED: GetOne với user lookup
+// 🔥 UPDATED: GetOne với address_snapshot
 controller.GetOne = async (req, res) => {
     try {
         const enrich = req.query.enrich === 'true';
 
         const bill = await Bill.findById(req.params.id)
-            .populate('address_id')
             .populate('shipper_id', 'full_name name phone is_online')
             .lean();
 
@@ -117,7 +143,7 @@ controller.GetOne = async (req, res) => {
             return res.status(404).json({ success: false, msg: 'Hóa đơn không tồn tại' });
         }
 
-        // 🔥 MANUAL USER LOOKUP
+        // 🔥 USER LOOKUP
         let customerName = 'Khách hàng không rõ';
         let customerPhone = '';
         
@@ -126,9 +152,8 @@ controller.GetOne = async (req, res) => {
             
             if (bill.user_id) {
                 user = await User.findById(bill.user_id).select('name phone').lean();
-            } else if (bill.account_id || bill.Account_id) {
-                const accountId = bill.account_id || bill.Account_id;
-                user = await User.findOne({ account_id: accountId }).select('name phone').lean();
+            } else if (bill.Account_id) {
+                user = await User.findOne({ account_id: bill.Account_id }).select('name phone').lean();
             }
             
             if (user) {
@@ -139,10 +164,11 @@ controller.GetOne = async (req, res) => {
             console.error('❌ Error finding user:', userErr);
         }
 
-        // Fetch items
+        // 🔥 FETCH BILL DETAILS
         const details = await BillDetail.find({ bill_id: req.params.id })
             .populate('product_id', 'name price')
             .lean();
+            
         const items = details.map(d => ({
             product_id: d.product_id?._id || d.product_id,
             productName: d.product_id?.name || 'Sản phẩm không tồn tại',
@@ -152,18 +178,47 @@ controller.GetOne = async (req, res) => {
             total: d.total || (d.quantity * d.price) || 0
         }));
 
-        let responseData = { ...bill, items, customerName, customerPhone };
+        // 🔥 DELIVERY INFO từ address_snapshot
+        const deliveryInfo = getDeliveryInfo(bill.address_snapshot);
+        
+        // 🔥 FINANCIAL BREAKDOWN
+        const financialBreakdown = calculateBillFinances(bill);
+
+        let responseData = { 
+            ...bill, 
+            items, 
+            customerName, 
+            customerPhone,
+            
+            // Delivery info
+            deliveryName: deliveryInfo.name,
+            deliveryPhone: deliveryInfo.phone,
+            deliveryAddress: deliveryInfo.address,
+            
+            // Financial info
+            subtotal: financialBreakdown.subtotal,
+            shippingFee: financialBreakdown.shippingFee,
+            discountAmount: financialBreakdown.discountAmount,
+            finalTotal: financialBreakdown.finalTotal
+        };
 
         if (enrich) {
             responseData = {
                 ...responseData,
                 shipperName: bill.shipper_id?.full_name || bill.shipper_id?.name || (bill.shipper_id ? 'Shipper không rõ' : '—'),
                 shipperPhone: bill.shipper_id?.phone || '',
-                addressString: formatAddress(bill.address_id),
+                
+                shippingMethodDisplay: getShippingMethodDisplay(bill.shipping_method),
+                paymentMethodDisplay: getPaymentMethodDisplay(bill.payment_method),
                 voucherDisplayCode: bill.voucher_code || '—',
                 statusDisplay: getStatusDisplay(bill.status),
                 created_date: bill.created_at ? new Date(bill.created_at).toLocaleDateString('vi-VN') : '',
-                total_formatted: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(bill.total || 0)
+                
+                // Formatted money
+                subtotal_formatted: formatMoney(financialBreakdown.subtotal),
+                shipping_fee_formatted: formatMoney(financialBreakdown.shippingFee),
+                discount_formatted: formatMoney(financialBreakdown.discountAmount),
+                total_formatted: formatMoney(financialBreakdown.finalTotal)
             };
         }
 
@@ -174,69 +229,88 @@ controller.GetOne = async (req, res) => {
     }
 };
 
-// 🔥 THÊM: DEBUG API để kiểm tra dữ liệu
-controller.DebugBillData = async (req, res) => {
-    try {
-        const bills = await Bill.find().limit(3).lean();
-        const users = await User.find().limit(5).lean();
-        const accounts = await Account.find().limit(5).lean();
-        
-        console.log('📊 DEBUG DATA:');
-        console.log('Bills sample:', bills.map(b => ({ 
-            id: b._id, 
-            user_id: b.user_id, 
-            account_id: b.account_id 
-        })));
-        console.log('Users sample:', users.map(u => ({ 
-            id: u._id, 
-            name: u.name, 
-            account_id: u.account_id 
-        })));
-        console.log('Accounts sample:', accounts.map(a => ({ 
-            id: a._id, 
-            email: a.email 
-        })));
-        
-        res.json({
-            success: true,
-            debug: {
-                bills: bills.length,
-                users: users.length,
-                accounts: accounts.length,
-                billSample: bills[0],
-                userSample: users[0],
-                relationshipIssue: 'Bills có user_id/account_id không? Users có account_id không?'
-            }
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-};
+// 🔥 HELPER FUNCTIONS
 
-// Helper functions (giữ nguyên)
-function formatAddress(addressInfo) {
-    if (!addressInfo) return 'Chưa có địa chỉ giao hàng';
-    
-    if (typeof addressInfo === 'object') {
-        const parts = [
-            addressInfo.detail_address || addressInfo.address || addressInfo.street,
-            addressInfo.ward || addressInfo.ward_name,
-            addressInfo.district || addressInfo.district_name,
-            addressInfo.city || addressInfo.province || addressInfo.province_name
-        ].filter(Boolean);
-        
-        if (parts.length > 0) {
-            return parts.join(', ');
-        }
+// Lấy thông tin giao hàng từ address_snapshot
+function getDeliveryInfo(addressSnapshot) {
+    if (!addressSnapshot || typeof addressSnapshot !== 'object') {
+        return {
+            name: 'Chưa có tên người nhận',
+            phone: 'Chưa có SĐT',
+            address: 'Chưa có địa chỉ giao hàng'
+        };
     }
+
+    const name = addressSnapshot.name || 'Chưa có tên';
+    const phone = addressSnapshot.phone || 'Chưa có SĐT';
     
-    if (typeof addressInfo === 'string') {
-        return addressInfo;
-    }
+    // Ghép địa chỉ từ các trường
+    const addressParts = [
+        addressSnapshot.detail,
+        addressSnapshot.ward,
+        addressSnapshot.district,
+        addressSnapshot.city
+    ].filter(Boolean);
     
-    return 'Địa chỉ không đầy đủ';
+    const address = addressParts.length > 0 
+        ? addressParts.join(', ')
+        : 'Chưa có địa chỉ';
+
+    return { name, phone, address };
 }
 
+// Tính toán breakdown tài chính chính xác
+function calculateBillFinances(bill) {
+    const originalTotal = Number(bill.original_total) || 0;
+    const discountAmount = Number(bill.discount_amount) || 0;
+    const shippingFee = Number(bill.shipping_fee) || 0;
+    const total = Number(bill.total) || 0;
+    
+    // Subtotal = original_total - shipping_fee (tiền hàng thuần)
+    const subtotal = originalTotal - shippingFee;
+    
+    // Final total should equal: subtotal + shipping_fee - discount
+    const calculatedTotal = subtotal + shippingFee - discountAmount;
+    
+    return {
+        subtotal: Math.max(0, subtotal),
+        shippingFee,
+        discountAmount,
+        finalTotal: total // Sử dụng total từ DB vì đã được tính chính xác
+    };
+}
+
+// Format tiền tệ
+function formatMoney(amount) {
+    return new Intl.NumberFormat('vi-VN', { 
+        style: 'currency', 
+        currency: 'VND' 
+    }).format(Number(amount) || 0);
+}
+
+// Display cho shipping method
+function getShippingMethodDisplay(method) {
+    const methodMap = {
+        'Giao hàng nội thành': '🏙️ Giao hàng nội thành',
+        'Giao hàng ngoại thành': '🌃 Giao hàng ngoại thành',
+        'Giao hàng hỏa tốc': '⚡ Giao hàng hỏa tốc',
+        'Nhận tại cửa hàng': '🏪 Nhận tại cửa hàng'
+    };
+    return methodMap[method] || method || 'Chưa chọn';
+}
+
+// Display cho payment method
+function getPaymentMethodDisplay(method) {
+    const methodMap = {
+        'Thanh toán khi nhận hàng': '💵 Thanh toán khi nhận hàng (COD)',
+        'VNPAY': '💳 VNPAY',
+        'MOMO': '📱 MoMo',
+        'Banking': '🏦 Chuyển khoản ngân hàng'
+    };
+    return methodMap[method] || method || 'Chưa chọn';
+}
+
+// Display trạng thái (giữ nguyên)
 function getStatusDisplay(status) {
     const statusMap = {
         'pending': 'Chờ xác nhận',
@@ -251,7 +325,9 @@ function getStatusDisplay(status) {
     return statusMap[status] || status;
 }
 
-// 🔥 SỬA: PUT /bills/:id/assign-shipper — Gán shipper với logic cập nhật trạng thái
+// 🔥 BỎ CÁC HÀM KHÔNG CẦN THIẾT - CHỈ GIỮ LẠI CÁC HÀM CORE
+
+// Assign Shipper (giữ nguyên)
 controller.AssignShipper = async (req, res) => {
     try {
         const { shipper_id } = req.body;
@@ -325,7 +401,63 @@ controller.AssignShipper = async (req, res) => {
     }
 };
 
-// 🔥 SỬA: CompleteOrder với logic cập nhật đầy đủ
+// Start Shipping
+controller.StartShipping = async (req, res) => {
+    try {
+        const { orderId, shipperId } = req.body;
+
+        if (!orderId || !shipperId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Thiếu orderId hoặc shipperId' 
+            });
+        }
+
+        const bill = await Bill.findById(orderId);
+        if (!bill) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Không tìm thấy đơn hàng' 
+            });
+        }
+
+        if (bill.shipper_id?.toString() !== shipperId) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Bạn không phải là shipper của đơn hàng này' 
+            });
+        }
+
+        if (bill.status !== 'ready') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Đơn hàng phải ở trạng thái "ready" để bắt đầu giao' 
+            });
+        }
+
+        bill.status = 'shipping';
+        await bill.save();
+
+        const shipperInfo = await Shipper.findById(shipperId).lean();
+
+        res.json({ 
+            success: true, 
+            message: 'Bắt đầu giao hàng thành công', 
+            data: {
+                ...bill.toObject(),
+                shipperName: shipperInfo?.full_name || shipperInfo?.name || 'Shipper không rõ'
+            }
+        });
+    } catch (error) {
+        console.error('❌ StartShipping error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Lỗi server: ' + error.message 
+        });
+    }
+};
+
+// Complete Order
 controller.CompleteOrder = async (req, res) => {
     try {
         const { orderId, shipperId } = req.body;
@@ -391,7 +523,7 @@ controller.CompleteOrder = async (req, res) => {
     }
 };
 
-// 🔥 SỬA: CancelOrder với logic cập nhật đầy đủ
+// Cancel Order
 controller.CancelOrder = async (req, res) => {
     try {
         const { orderId, shipperId } = req.body;
@@ -443,118 +575,5 @@ controller.CancelOrder = async (req, res) => {
         });
     }
 };
-
-// 🔥 THÊM: API chuyển đơn hàng sang trạng thái "đang giao"
-controller.StartShipping = async (req, res) => {
-    try {
-        const { orderId, shipperId } = req.body;
-
-        if (!orderId || !shipperId) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Thiếu orderId hoặc shipperId' 
-            });
-        }
-
-        const bill = await Bill.findById(orderId);
-        if (!bill) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy đơn hàng' 
-            });
-        }
-
-        if (bill.shipper_id?.toString() !== shipperId) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Bạn không phải là shipper của đơn hàng này' 
-            });
-        }
-
-        if (bill.status !== 'ready') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Đơn hàng phải ở trạng thái "ready" để bắt đầu giao' 
-            });
-        }
-
-        // Cập nhật trạng thái
-        bill.status = 'shipping';
-        await bill.save();
-
-        // Lấy thông tin shipper để trả về
-        const shipperInfo = await Shipper.findById(shipperId).lean();
-
-        res.json({ 
-            success: true, 
-            message: 'Bắt đầu giao hàng thành công', 
-            data: {
-                ...bill.toObject(),
-                shipperName: shipperInfo?.full_name || shipperInfo?.name || 'Shipper không rõ'
-            }
-        });
-    } catch (error) {
-        console.error('❌ StartShipping error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Lỗi server: ' + error.message 
-        });
-    }
-};
-
-// 🔥 Helper function tính phí ship
-function calculateShippingFee(shippingMethod, addressInfo, subtotal) {
-    if (subtotal >= 500000) {
-        return 0;
-    }
-
-    const shippingRates = {
-        'standard': 30000,
-        'express': 50000,
-        'same-day': 80000,
-        'pickup': 0
-    };
-
-    return shippingRates[shippingMethod] || 30000;
-}
-
-// 🔥 Helper function format địa chỉ
-function formatAddress(addressInfo) {
-    if (!addressInfo) return 'Chưa có địa chỉ giao hàng';
-    
-    if (typeof addressInfo === 'object') {
-        const parts = [
-            addressInfo.detail_address || addressInfo.address || addressInfo.street,
-            addressInfo.ward || addressInfo.ward_name,
-            addressInfo.district || addressInfo.district_name,
-            addressInfo.city || addressInfo.province || addressInfo.province_name
-        ].filter(Boolean);
-        
-        if (parts.length > 0) {
-            return parts.join(', ');
-        }
-    }
-    
-    if (typeof addressInfo === 'string') {
-        return addressInfo;
-    }
-    
-    return 'Địa chỉ không đầy đủ';
-}
-
-// 🔥 THÊM: Helper function format trạng thái
-function getStatusDisplay(status) {
-    const statusMap = {
-        'pending': 'Chờ xác nhận',
-        'confirmed': 'Đã xác nhận',
-        'ready': 'Sẵn sàng giao',
-        'shipping': 'Đang giao',
-        'done': 'Hoàn thành',
-        'cancelled': 'Đã hủy',
-        'failed': 'Thất bại'
-    };
-    
-    return statusMap[status] || status;
-}
 
 module.exports = controller;
