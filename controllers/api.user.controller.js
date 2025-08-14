@@ -36,12 +36,12 @@ userController.getCustomersWithDetails = async (req, res) => {
         }
       },
       
-      // 3. Join với collection addresses
+      // 3. ✅ SỬA: Join đúng với collection addresses (Address có user_id tham chiếu User)
       {
         $lookup: {
           from: 'addresses',
-          localField: 'address_id', 
-          foreignField: '_id',
+          localField: '_id',          // User._id
+          foreignField: 'user_id',    // Address.user_id
           as: 'address_info'
         }
       },
@@ -52,7 +52,7 @@ userController.getCustomersWithDetails = async (req, res) => {
         }
       },
       
-      // 4. Join với collection bills để tính số đơn hàng
+      // 4. Join với collection bills để tính số đơn hàng và ngày đơn cuối
       {
         $lookup: {
           from: 'bills',
@@ -63,7 +63,9 @@ userController.getCustomersWithDetails = async (req, res) => {
                 $expr: { $eq: ['$user_id', '$$userId'] },
                 status: { $ne: 'cancelled' }
               }
-            }
+            },
+            // Sắp xếp để lấy đơn hàng mới nhất
+            { $sort: { created_at: -1 } }
           ],
           as: 'bills'
         }
@@ -89,34 +91,63 @@ userController.getCustomersWithDetails = async (req, res) => {
           provider: { $ifNull: ['$account_info.provider', 'local'] },
           account_role: { $ifNull: ['$account_info.role', 'user'] },
           
-          // Thông tin địa chỉ đầy đủ
+          // ✅ SỬA: Thông tin địa chỉ đầy đủ với join đúng
           address_detail: {
             $cond: {
-              if: '$address_info',
+              if: { $ne: ['$address_info', null] },
               then: {
-                street: { $ifNull: ['$address_info.street', ''] },
+                street: { $ifNull: ['$address_info.detail_address', ''] },
                 ward: { $ifNull: ['$address_info.ward', ''] },
                 district: { $ifNull: ['$address_info.district', ''] },
                 city: { $ifNull: ['$address_info.city', ''] },
                 full_address: {
-                  $concat: [
-                    { $ifNull: ['$address_info.street', ''] }, ', ',
-                    { $ifNull: ['$address_info.ward', ''] }, ', ',
-                    { $ifNull: ['$address_info.district', ''] }, ', ',
-                    { $ifNull: ['$address_info.city', ''] }
-                  ]
+                  $trim: {
+                    input: {
+                      $concat: [
+                        { $ifNull: ['$address_info.detail_address', ''] },
+                        {
+                          $cond: {
+                            if: { $and: [{ $ne: ['$address_info.ward', null] }, { $ne: ['$address_info.ward', ''] }] },
+                            then: { $concat: [', ', { $ifNull: ['$address_info.ward', ''] }] },
+                            else: ''
+                          }
+                        },
+                        {
+                          $cond: {
+                            if: { $and: [{ $ne: ['$address_info.district', null] }, { $ne: ['$address_info.district', ''] }] },
+                            then: { $concat: [', ', { $ifNull: ['$address_info.district', ''] }] },
+                            else: ''
+                          }
+                        },
+                        {
+                          $cond: {
+                            if: { $and: [{ $ne: ['$address_info.city', null] }, { $ne: ['$address_info.city', ''] }] },
+                            then: { $concat: [', ', { $ifNull: ['$address_info.city', ''] }] },
+                            else: ''
+                          }
+                        }
+                      ]
+                    },
+                    chars: ', '
+                  }
                 }
               },
               else: null
             }
           },
           
-          // Avatar với fallback
+          // Avatar với fallback (GIỮ NGUYÊN để mobile app hoạt động)
           display_avatar: {
             $cond: {
-              if: { $ne: ['$avatar', null] },
+              if: { $and: [{ $ne: ['$avatar', null] }, { $ne: ['$avatar', ''] }] },
               then: '$avatar',
-              else: { $ifNull: ['$image', 'avatarmacdinh.png'] }
+              else: { 
+                $cond: {
+                  if: { $and: [{ $ne: ['$image', null] }, { $ne: ['$image', ''] }] },
+                  then: '$image',
+                  else: 'avatarmacdinh.png'
+                }
+              }
             }
           },
           
@@ -132,17 +163,15 @@ userController.getCustomersWithDetails = async (req, res) => {
             }
           },
           
-          // Tuổi (nếu có ngày sinh)
-          age: {
+          // ✅ THÊM: Ngày đơn hàng cuối cùng
+          last_order_date: {
             $cond: {
-              if: '$birth_date',
-              then: {
-                $floor: {
-                  $divide: [
-                    { $subtract: [new Date(), '$birth_date'] },
-                    365.25 * 24 * 60 * 60 * 1000
-                  ]
-                }
+              if: { $gt: [{ $size: '$bills' }, 0] },
+              then: { 
+                $arrayElemAt: [
+                  { $map: { input: '$bills', as: 'bill', in: '$$bill.created_at' } }, 
+                  0 
+                ]
               },
               else: null
             }
@@ -150,12 +179,16 @@ userController.getCustomersWithDetails = async (req, res) => {
         }
       },
       
-      // 7. Remove unnecessary fields
+      // 7. Remove unnecessary fields để giảm kích thước response
       {
         $project: {
           account_info: 0,
           address_info: 0,
-          bills: 0
+          bills: 0,
+          password: 0,
+          otp: 0,
+          otpExpires: 0
+          // ✅ GIỮ NGUYÊN: Không bỏ gender và birth_date để mobile app vẫn hoạt động nếu cần
         }
       },
       
@@ -174,6 +207,12 @@ userController.getCustomersWithDetails = async (req, res) => {
     const totalPages = Math.ceil(total / parseInt(limit));
 
     console.log(`✅ [WEB ADMIN] Lấy ${customers.length}/${total} khách hàng với thông tin đầy đủ`);
+    console.log('📋 Sample customer data:', customers[0] ? {
+      id: customers[0]._id,
+      name: customers[0].name,
+      email: customers[0].email,
+      address: customers[0].address_detail?.full_address || 'Chưa có địa chỉ'
+    } : 'Không có dữ liệu');
 
     res.json({
       success: true,
@@ -236,6 +275,15 @@ userController.getCustomerStats = async (req, res) => {
           as: 'bills'
         }
       },
+      // ✅ SỬA: Join với addresses để đếm user có địa chỉ
+      {
+        $lookup: {
+          from: 'addresses',
+          localField: '_id',
+          foreignField: 'user_id',
+          as: 'addresses'
+        }
+      },
       {
         $group: {
           _id: null,
@@ -260,7 +308,7 @@ userController.getCustomerStats = async (req, res) => {
             $sum: { $cond: [{ $eq: [{ $ifNull: ['$account_info.provider', 'local'] }, 'facebook'] }, 1, 0] }
           },
           
-          // Thống kê theo giới tính
+          // ✅ GIỮ NGUYÊN: Thống kê theo giới tính (để mobile app không bị lỗi nếu có dùng)
           maleCustomers: {
             $sum: { $cond: [{ $eq: ['$gender', 'male'] }, 1, 0] }
           },
@@ -290,9 +338,9 @@ userController.getCustomerStats = async (req, res) => {
             $sum: { $size: '$bills' }
           },
           
-          // Thống kê khác
+          // ✅ SỬA: Thống kê địa chỉ với join đúng
           customersWithAddress: {
-            $sum: { $cond: [{ $ne: ['$address_id', null] }, 1, 0] }
+            $sum: { $cond: [{ $gt: [{ $size: '$addresses' }, 0] }, 1, 0] }
           },
           verifiedCustomers: {
             $sum: { $cond: [{ $eq: [{ $ifNull: ['$is_verified', false] }, true] }, 1, 0] }
@@ -406,7 +454,9 @@ userController.toggleCustomerLock = async (req, res) => {
   }
 };
 
-// ✅ SỬA: Tạo hồ sơ user profile
+// ✅ GIỮ NGUYÊN TẤT CẢ CÁC HÀM KHÁC ĐỂ MOBILE APP KHÔNG BỊ ẢNH HƯỞNG
+
+// ✅ SỬA: Tạo hồ sơ user profile (GIỮ NGUYÊN)
 userController.createUserProfile = async (req, res) => {
   try {
     const { account_id, name, phone, gender, avatar } = req.body;
@@ -471,7 +521,7 @@ userController.createUserProfile = async (req, res) => {
   }
 };
 
-// ✅ SỬA: Lấy thông tin user theo account_id 
+// ✅ SỬA: Lấy thông tin user theo account_id (GIỮ NGUYÊN)
 userController.getByAccountId = async (req, res) => {
   try {
     const { account_id } = req.params;
@@ -508,7 +558,7 @@ userController.getByAccountId = async (req, res) => {
   }
 };
 
-// ✅ Override method Add để hỗ trợ Google và Facebook login
+// ✅ Override method Add để hỗ trợ Google và Facebook login (GIỮ NGUYÊN)
 userController.Add = async (req, res) => {
   try {
     const { name, email, password, image, google_id, facebook_id } = req.body;
