@@ -127,11 +127,28 @@ router.put('/favorites/:id', favoriteCtrl.Edit);
 router.delete('/favorites/:id', favoriteCtrl.Delete);
 
 // ——— CRUD cho Notifications ———
-router.get('/notifications', notificationCtrl.getList);
-router.get('/notifications/:id', notificationCtrl.GetOne);
-router.post('/notifications', notificationCtrl.Add);
-router.put('/notifications/:id', notificationCtrl.Edit);
-router.delete('/notifications/:id', notificationCtrl.Delete);
+// router.get('/notifications', notificationCtrl.getList);
+// router.get('/notifications/:id', notificationCtrl.GetOne);
+// router.post('/notifications', notificationCtrl.Add);
+// router.put('/notifications/:id', notificationCtrl.Edit);
+// router.delete('/notifications/:id', notificationCtrl.Delete);
+// ——— NOTIFICATIONS - 100% Backward Compatible với Mobile ———
+
+// 🆕 ENDPOINTS MỚI CHỈ CHO WEB ADMIN (đặt TRƯỚC để không bị conflict)
+router.get('/notifications/admin/all', api_auth, requireRole('admin'), notificationCtrl.getListForAdmin);
+router.get('/notifications/admin/stats', api_auth, requireRole('admin'), notificationCtrl.getStats);
+router.post('/notifications/admin/broadcast', api_auth, requireRole('admin'), notificationCtrl.broadcast);
+router.put('/notifications/admin/bulk/mark-read', api_auth, requireRole('admin'), notificationCtrl.markReadBulk);
+router.delete('/notifications/admin/bulk/delete', api_auth, requireRole('admin'), notificationCtrl.deleteBulk);
+
+// 🔄 GIỮ NGUYÊN 100% endpoints cũ cho mobile app
+router.get('/notifications/user/:userId', api_auth, notificationCtrl.getListByUser); // ✅ Mobile app endpoint
+router.get('/notifications', api_auth, notificationCtrl.getList); // ✅ Mobile + Web compatible
+router.get('/notifications/:id', api_auth, notificationCtrl.GetOne); // ✅ Mobile + Web
+router.post('/notifications', notificationCtrl.Add); // ✅ Mobile compatible (no auth required)
+router.put('/notifications/:id', api_auth, notificationCtrl.Edit); // ✅ Mobile + Web
+router.delete('/notifications/:id', api_auth, notificationCtrl.Delete); // ✅ Web admin only
+
 
 // ——— CRUD cho Vouchers ———
 router.get('/vouchers', voucherCtrl.getList);

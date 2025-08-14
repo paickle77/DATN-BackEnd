@@ -1,28 +1,65 @@
-// models/notification.model.js
+// models/notification.model.js - MINIMAL CHANGES để tương thích
 const mongoose = require('./db');
 
 const NotificationSchema = new mongoose.Schema({
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true // Tối ưu query
   },
   content: {
     type: String,
-    required: true
+    required: true,
+    maxlength: 500,
+    trim: true
+  },
+  title: {
+    type: String,
+    maxlength: 100,
+    trim: true,
+    default: '' // Tương thích với code cũ
   },
   is_read: {
     type: Boolean,
-    default: false
+    default: false,
+    index: true // Tối ưu query filter
   },
-  // giờ title không bắt buộc, có thể mặc định ""
-  title: {
+  type: {
     type: String,
-    default: '' 
+    enum: ['global', 'personal'],
+    default: 'personal',
+    index: true
+  },
+  // 🆕 THÊM FIELD MỚI - Lưu admin tạo thông báo (optional)
+  created_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User', // Hoặc ref: 'Account' tùy theo model bạn dùng
+    required: false, // ⚠️ QUAN TRỌNG: không required để tương thích mobile app cũ
+    default: null
   }
 }, {
   collection: 'notifications',
-  timestamps: { createdAt: 'created_at', updatedAt: false }
+  timestamps: { 
+    createdAt: 'created_at', 
+    updatedAt: false // Giữ nguyên như code cũ
+  }
+});
+
+// 🔥 Compound index để tối ưu query phổ biến
+NotificationSchema.index({ user_id: 1, created_at: -1 });
+NotificationSchema.index({ user_id: 1, is_read: 1 });
+NotificationSchema.index({ type: 1, created_at: -1 });
+
+// 🔥 Pre-save middleware để tự động tạo title (giữ logic cũ)
+NotificationSchema.pre('save', function(next) {
+  // Auto-generate title nếu chưa có
+  if (!this.title && this.content) {
+    this.title = this.content.length > 50 
+      ? this.content.slice(0, 50) + '…' 
+      : this.content;
+  }
+  next();
 });
 
 module.exports = mongoose.model('Notification', NotificationSchema);
