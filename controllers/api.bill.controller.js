@@ -215,8 +215,6 @@ module.exports.CancelOrder = async (req, res) => {
     );
 
     res.json({ success: true, message: 'Hoàn thành đơn hàng thành công', data: updatedBill });
-
-    res.json({ success: true, message: 'Đơn hàng đã được hủy thành công', data: bill });
   } catch (error) {
     console.error('CancelOrder error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
