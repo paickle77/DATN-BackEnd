@@ -86,6 +86,10 @@ router.delete('/billdetails/:id', billdetails.Delete);
 
 // ——— CRUD cho Suppliers ———
 router.get('/suppliers', supplierCtrl.getList);
+router.get('/suppliers/active', supplierCtrl.getActiveSuppliers); // ✅ Web admin endpoint
+router.get('/suppliers/search', supplierCtrl.searchByName); // ✅ Web admin endpoint
+router.get('/suppliers/statistics', supplierCtrl.getStatistics); // ✅ Web admin endpoint
+router.get('/suppliers/expiring-soon', supplierCtrl.getExpiringSoon); // ✅ Web admin endpoint
 router.get('/suppliers/:id', supplierCtrl.GetOne);
 router.post('/suppliers', requireRole('admin'), supplierCtrl.Add);
 router.put('/suppliers/:id', requireRole('admin'), supplierCtrl.Edit);
@@ -126,12 +130,6 @@ router.post('/favorites', favoriteCtrl.Add);
 router.put('/favorites/:id', favoriteCtrl.Edit);
 router.delete('/favorites/:id', favoriteCtrl.Delete);
 
-// ——— CRUD cho Notifications ———
-// router.get('/notifications', notificationCtrl.getList);
-// router.get('/notifications/:id', notificationCtrl.GetOne);
-// router.post('/notifications', notificationCtrl.Add);
-// router.put('/notifications/:id', notificationCtrl.Edit);
-// router.delete('/notifications/:id', notificationCtrl.Delete);
 // ——— NOTIFICATIONS - 100% Backward Compatible với Mobile ———
 
 // 🆕 ENDPOINTS MỚI CHỈ CHO WEB ADMIN (đặt TRƯỚC để không bị conflict)
@@ -148,7 +146,6 @@ router.get('/notifications/:id', api_auth, notificationCtrl.GetOne); // ✅ Mobi
 router.post('/notifications', notificationCtrl.Add); // ✅ Mobile compatible (no auth required)
 router.put('/notifications/:id', api_auth, notificationCtrl.Edit); // ✅ Mobile + Web
 router.delete('/notifications/:id', api_auth, notificationCtrl.Delete); // ✅ Web admin only
-
 
 // ——— CRUD cho Vouchers ———
 router.get('/vouchers', voucherCtrl.getList);
@@ -188,23 +185,40 @@ router.post('/categories', requireRole('admin'), categoryCtrl.Add);
 router.put('/categories/:id', requireRole('admin'), categoryCtrl.Edit);
 router.delete('/categories/:id', requireRole('admin'), categoryCtrl.Delete);
 
-// ——— CRUD cho Products ———
+// ——— CRUD cho Products - ENHANCED ———
+// ✅ WEB ADMIN SPECIFIC ROUTES (Đặt trước để tránh conflict)
+router.get('/products/with-sizes', productCtrl.getProductsWithSizes); // 🆕 Web admin endpoint
+router.get('/products/all/with-sizes', productCtrl.getAllProductsWithSizes); // 🆕 Enhanced version
+router.post('/products/:id/update-stock', productCtrl.updateStock); // 🆕 Web admin endpoint  
+router.post('/products/update-all-stock', productCtrl.updateAllStock); // 🆕 Web admin endpoint
+
+// ✅ MOBILE COMPATIBLE ROUTES (Giữ nguyên thứ tự cũ)
 router.get('/products', productCtrl.getList);
 router.get('/productscategory', productCtrl.GetListByCategory);
 router.get('/productsandcategoryid', productCtrl.getProductAndCategoryName);
 router.get('/productsandintergradianID', productCtrl.getProductAndIngredientName);
 router.get('/products/categories/:id', productCtrl.GetListByCategory);
 router.get('/products/search', productCtrl.SearchByName);
-router.get('/products/:id', productCtrl.GetOne);
-router.post('/products', requireRole('admin'), productCtrl.Add);
-router.put('/products/:id', requireRole('admin'), productCtrl.Edit);
-router.delete('/products/:id', requireRole('admin'), productCtrl.Delete);
 
-// ——— CRUD cho Sizes (Admin only) ———
+// ✅ INDIVIDUAL PRODUCT ROUTES
+router.get('/products/:id/with-sizes', productCtrl.getProductWithSizes); // Enhanced version
+router.get('/products/:id', productCtrl.GetOne); // Keep for mobile compatibility
+router.post('/products', productCtrl.Add);
+router.put('/products/:id', productCtrl.Edit);
+router.delete('/products/:id', productCtrl.Delete);
+
+// ——— CRUD cho Sizes (ENHANCED) ———
+// ✅ WEB ADMIN ROUTES - đặt trước để tránh conflict  
+router.get('/sizes/product/:productId', sizeCtrl.getSizesByProduct); // 🆕 Get sizes by product
+router.post('/sizes/bulk-create', sizeCtrl.bulkCreate); // 🆕 Bulk create sizes
+router.post('/sizes/bulk-update', sizeCtrl.bulkUpdate); // 🆕 Bulk update sizes
+router.delete('/sizes/product/:productId', sizeCtrl.deleteByProduct); // 🆕 Delete all sizes of product
+
+// ✅ STANDARD CRUD ROUTES (Mobile compatible)
 router.get('/sizes', sizeCtrl.getList);
 router.get('/sizes/:id', sizeCtrl.GetOne);
-router.post('/sizes', requireRole('admin'), sizeCtrl.Add);
-router.put('/sizes/:id', requireRole('admin'), sizeCtrl.Edit);
-router.delete('/sizes/:id', requireRole('admin'), sizeCtrl.Delete);
+router.post('/sizes', sizeCtrl.Add); // Enhanced with stock update
+router.put('/sizes/:id', sizeCtrl.Edit); // Enhanced with stock update  
+router.delete('/sizes/:id', sizeCtrl.Delete); // Enhanced with stock update
 
 module.exports = router;
