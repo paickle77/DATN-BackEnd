@@ -134,6 +134,7 @@ router.delete('/favorites/:id', favoriteCtrl.Delete);
 // Notifications
 router.get('/notifications', notificationCtrl.getList);
 router.get('/notifications/:id', notificationCtrl.GetOne);
+router.get('/notifications/user/:userId', notificationCtrl.getListByUser);
 router.post('/notifications', notificationCtrl.Add);
 router.put('/notifications/:id', notificationCtrl.Edit);
 router.delete('/notifications/:id', notificationCtrl.Delete);

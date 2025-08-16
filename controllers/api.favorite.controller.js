@@ -8,7 +8,7 @@ module.exports.GetFavoriteandNameProduct = async (req, res) => {
     const { Accountid } = req.params;
 
     const favorite = await Favorite.findOne({ Account_id: Accountid })
-      .populate('product_id', 'name');  // chỉ lấy field name
+      .populate('product_id', 'name');  
 
     if (!favorite) {
       return res.status(404).json({ msg: 'Favorite not found', data: null });

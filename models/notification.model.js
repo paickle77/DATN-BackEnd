@@ -16,9 +16,10 @@ const NotificationSchema = new mongoose.Schema({
     default: false
   },
   // giờ title không bắt buộc, có thể mặc định ""
-  title: {
+  type: {
     type: String,
-    default: '' 
+    enum: ['global', 'personal'], // global: toàn bộ user, personal: riêng user_id
+    default: 'personal'
   }
 }, {
   collection: 'notifications',
