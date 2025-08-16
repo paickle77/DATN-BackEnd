@@ -154,7 +154,8 @@ router.post('/voucher_users', voucher_user.Add);
 router.put('/voucher_users/:id', voucher_user.Edit); 
 router.delete('/voucher_users/:id', voucher_user.Delete); 
 router.get('/voucher_users/account/:accountId', voucher_user.GetVoucherUserByAccountId);
-router.put('/voucher_user/by-voucher/:voucher_id/status', voucher_user.UpdateVoucherUserStatus);
+router.put("/voucher_user/:accountId/:voucherid/status", voucher_user.UpdateVoucherUserStatus);
+
 
 
 

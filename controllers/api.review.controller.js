@@ -7,6 +7,7 @@ module.exports.GetAllReview = async (req, res) => {
   try {
     const reviews = await Review.find()
       .populate('product_id')
+      .populate('Account_id')
       .exec();
 
     res.json({ msg: 'OK', data: reviews });

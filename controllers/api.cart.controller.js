@@ -7,8 +7,8 @@ module.exports.GetAllCart=async(req,res)=>{
     try {
         const list= await Cart.find()
         .populate('product_id')
-        .populate('size_id','size')
-        .exec();
+        .populate('size_id')
+       .exec();
 
         // 🔐 Lọc bỏ những cart không có product hoặc size (null do bị xóa hoặc lỗi DB)
     const validList = list.filter(item => item.product_id && item.size_id);
