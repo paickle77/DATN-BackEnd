@@ -27,6 +27,7 @@ const billdetails = require('../controllers/api.billdetails.controller');
 const voucher_user = require('../controllers/api.voucher_user.controller');
 const shipperCtrl        = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
+const aiCtrl = require('../controllers/api.ai.controller');
 
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
@@ -60,6 +61,11 @@ router.get('/users/:id', userCtrl.GetOne); // ✅ Lấy user bằng user_id
 router.post('/users/profile', userCtrl.createUserProfile); // ✅ Tạo profile user
 router.put('/users/:id', userCtrl.Edit);
 router.delete('/users/:id', userCtrl.Delete);
+
+// ——— AI Chat Routes ———
+router.post('/ai/chat', aiCtrl.chat);
+router.get('/ai/suggestions', aiCtrl.getQuickSuggestions);
+router.get('/ai/product/:product_id', aiCtrl.getProductInfo);
 
 // --- CRUD cho Shippers
 router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
@@ -154,7 +160,14 @@ router.post('/voucher_users', voucher_user.Add);
 router.put('/voucher_users/:id', voucher_user.Edit); 
 router.delete('/voucher_users/:id', voucher_user.Delete); 
 router.get('/voucher_users/account/:accountId', voucher_user.GetVoucherUserByAccountId);
-router.put("/voucher_user/:accountId/:voucherid/status", voucher_user.UpdateVoucherUserStatus);
+// API lưu voucher với kiểm tra trùng lặp
+router.post('/voucher_users/save', voucher_user.SaveVoucherToUser);
+// API sử dụng voucher với logic kiểm tra đầy đủ
+router.post('/voucher_users/use', voucher_user.UseVoucher);
+// API đánh dấu voucher đã sử dụng khi đơn hàng thành công
+router.post('/voucher_users/mark-used', voucher_user.MarkVoucherAsUsed);
+// API cập nhật trạng thái voucher hết hạn tự động
+router.post('/voucher_users/update-expired', voucher_user.UpdateExpiredVouchers);
 
 
 
