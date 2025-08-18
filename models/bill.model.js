@@ -22,6 +22,7 @@ const billSchema = new Schema({
   payment_confirmed_at: { type: Date }, // Thời gian xác nhận thanh toán
   delivered_at: { type: Date }, // Thời gian giao hàng thành công
   cancelled_at: { type: Date }, // 🔥 THÊM: Thời gian hủy đơn
+  proof_images: { type: [String], default: [] },
 }, { timestamps: true });
 
 // Index để tìm kiếm nhanh hơn

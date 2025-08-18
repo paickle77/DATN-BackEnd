@@ -18,7 +18,7 @@ controller.GetAllBills = async (req, res) => {
 
         // 🔥 STEP 1: Lấy bills với các trường cần thiết
         const bills = await Bill.find()
-            .select('user_id Account_id address_snapshot shipper_id status total original_total discount_amount shipping_fee shipping_method voucher_code payment_method created_at')
+            .select('user_id Account_id address_snapshot shipper_id status total original_total discount_amount shipping_fee shipping_method voucher_code payment_method created_at proof_images')
             .populate('shipper_id', 'full_name name phone is_online')
             .sort(sort)
             .skip((page - 1) * limit)
@@ -63,6 +63,8 @@ controller.GetAllBills = async (req, res) => {
 
                 return {
                     ...bill,
+                    // Trả về ảnh minh chứng (đã chuẩn hoá)
+                    proof_images: normalizeProofImages(bill.proof_images),
                     // Customer info
                     customerName,
                     customerPhone,
@@ -189,7 +191,10 @@ controller.GetOne = async (req, res) => {
             items, 
             customerName, 
             customerPhone,
-            
+
+            // Đảm bảo có field proof_images trả về, ở dạng mảng
+            proof_images: normalizeProofImages(bill.proof_images),
+
             // Delivery info
             deliveryName: deliveryInfo.name,
             deliveryPhone: deliveryInfo.phone,
@@ -228,6 +233,29 @@ controller.GetOne = async (req, res) => {
         res.status(500).json({ success: false, msg: 'Lỗi khi lấy chi tiết hóa đơn: ' + err.message });
     }
 };
+
+// Chuẩn hoá proof_images thành mảng string (hỗ trợ: mảng, JSON string, base64 đơn)
+function normalizeProofImages(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return [];
+    if (s.startsWith('[')) {
+      try {
+        const arr = JSON.parse(s);
+        return Array.isArray(arr) ? arr.filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    }
+    if (s.startsWith('data:image')) return [s];
+    if (s.includes(',')) return s.split(',').map(x => x.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 
 // 🔥 HELPER FUNCTIONS
 
