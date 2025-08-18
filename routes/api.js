@@ -91,9 +91,9 @@ router.get('/suppliers/search', supplierCtrl.searchByName); // ✅ Web admin end
 router.get('/suppliers/statistics', supplierCtrl.getStatistics); // ✅ Web admin endpoint
 router.get('/suppliers/expiring-soon', supplierCtrl.getExpiringSoon); // ✅ Web admin endpoint
 router.get('/suppliers/:id', supplierCtrl.GetOne);
-router.post('/suppliers', requireRole('admin'), supplierCtrl.Add);
-router.put('/suppliers/:id', requireRole('admin'), supplierCtrl.Edit);
-router.delete('/suppliers/:id', requireRole('admin'), supplierCtrl.Delete);
+router.post('/suppliers', api_auth, requireRole('admin'), supplierCtrl.Add);
+router.put('/suppliers/:id', api_auth, requireRole('admin'), supplierCtrl.Edit);
+router.delete('/suppliers/:id', api_auth, requireRole('admin'), supplierCtrl.Delete);
 
 // Logs - Admin only
 router.get('/logs', requireRole('admin'), logCtrl.getList);
