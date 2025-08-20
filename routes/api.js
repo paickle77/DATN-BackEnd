@@ -16,6 +16,7 @@ const orderCtrl = require('../controllers/api.order.controller');
 const orderDetailCtrl = require('../controllers/api.orderDetail.controller');
 const paymentCtrl = require('../controllers/api.payment.controller');
 const reviewCtrl = require('../controllers/api.review.controller');
+const ratingCtrl = require('../controllers/api.rating.controller');
 const ingredientCtrl = require('../controllers/api.ingredient.controller');
 const branchCtrl = require('../controllers/api.branch.controller');
 const categoryCtrl = require('../controllers/api.category.controller');
@@ -211,12 +212,16 @@ router.get('/GetAllReview', reviewCtrl.GetAllReview);
 router.get('/reviews/:id', reviewCtrl.GetOne);
 router.post('/reviews', reviewCtrl.Add);
 router.put('/reviews/:id', reviewCtrl.Edit);
-// Reviews
-router.get('/reviews', reviewCtrl.getList);
-router.get('/reviews/:id', reviewCtrl.GetOne);
-router.post('/reviews', reviewCtrl.Add);
-router.put('/reviews/:id', reviewCtrl.Edit);
 router.delete('/reviews/:id', reviewCtrl.Delete);
+
+// ——— Review Status APIs ———
+router.get('/bill-review-status/:billId/:accountId', reviewCtrl.checkBillReviewStatus);
+router.get('/product-review-status/:billId/:productId/:accountId', reviewCtrl.checkProductReviewInBill);
+router.get('/debug-bill/:billId', reviewCtrl.debugBillDetails);
+
+// ——— Rating APIs (Optimized) ———
+router.post('/batch-ratings', ratingCtrl.getBatchRatings);
+router.get('/product-rating/:productId', ratingCtrl.getProductRating);
 
 // Ingredients — chỉ cho admin
 router.get('/ingredients', requireRole('admin'), ingredientCtrl.getList);
