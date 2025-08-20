@@ -12,8 +12,15 @@ function isInDateRange(v) {
 // ========== CRUD cơ bản (giữ nguyên style của bạn) ==========
 exports.list = async (req, res) => {
   try {
-    const data = await Voucher.find().sort('-createdAt').lean();
-    res.json({ success: true, data });
+      const items = await Voucher.find().sort('-createdAt').lean();
+      const ids = items.map(i => i._id);
+      const claimedAgg = await VoucherUser.aggregate([
+        { $match: { voucher_id: { $in: ids } } },
+        { $group: { _id: '$voucher_id', count: { $sum: 1 } } }
+      ]);
+      const claimedMap = Object.fromEntries(claimedAgg.map(x => [String(x._id), x.count]));
+      const data = items.map(v => ({ ...v, claimed_count: claimedMap[String(v._id)] || 0 }));
+      res.json({ success: true, data });
   } catch (e) {
     res.status(500).json({ success: false, msg: e.message });
   }

@@ -21,11 +21,10 @@ exports.myList = async (req, res) => {
     const now = new Date();
     const mapped = data.map(vu => {
       const v = vu.voucher_id || {};
-      const expired = !(v.start_date && v.end_date && now >= new Date(v.start_date) && now <= new Date(v.end_date));
-      return {
-        ...vu,
-        status: expired ? 'expired' : vu.status
-      };
+      const inRange = v.start_date && v.end_date && now >= new Date(v.start_date) && now <= new Date(v.end_date);
+      const limitPerUser = v.max_usage_per_user || 0; // 0 = ∞
+      const isUsed = limitPerUser > 0 && (vu.usage_count || 0) >= limitPerUser;
+      return { ...vu, status: inRange ? (isUsed ? 'used' : 'active') : 'expired' };
     });
 
     res.json({ success: true, data: mapped });
@@ -47,6 +46,14 @@ exports.saveVoucher = async (req, res) => {
     if (!isInDateRange(voucher)) {
       return res.status(400).json({ success: false, msg: 'Mã không còn hiệu lực' });
     }
+
+      // ⛔ NEW: chặn khi đã phát đủ suất (đếm số user đã lưu mã này)
+      if (voucher.quantity > 0) {
+        const claimed = await VoucherUser.countDocuments({ voucher_id: voucher._id });
+        if (claimed >= voucher.quantity) {
+          return res.status(400).json({ success: false, msg: 'Mã đã hết suất phát hành' });
+        }
+          }
 
     let vu = await VoucherUser.findOne({ Account_id: account_id, voucher_id: voucher._id });
     if (!vu) {
