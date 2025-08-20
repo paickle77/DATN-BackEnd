@@ -1,42 +1,39 @@
 // controllers/api.voucherUserAdmin.controller.js
-const Base       = require('./base.controller');
-const VoucherUser= require('../models/voucher_user.model');
+const VoucherUser = require('../models/voucher_user.model');
 
-const controller = Base(VoucherUser);
-
-// GET /admin/voucher_users — danh sách kèm user & voucher (admin)
-controller.getList = async (req, res) => {
+exports.adminList = async (req, res) => {
   try {
-    const list = await VoucherUser.find()
-      .populate('user_id',    'name email')
-      .populate('voucher_id', 'code description discount_percent')
+    const data = await VoucherUser.find()
+      .populate('Account_id', 'full_name email phone') // tuỳ field trong Account
+      .populate('voucher_id', 'code discount_percent max_usage_per_user start_date end_date')
+      .sort('-createdAt')
       .lean();
-    res.json({ msg: 'OK', data: list });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: err.message });
+
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: e.message });
   }
 };
 
-// PUT /admin/voucher_users/:id — chỉ cho admin đổi status
-controller.Edit = async (req, res) => {
+// PUT /voucher_users/:id  { status }
+exports.updateStatus = async (req, res) => {
   try {
+    const { id } = req.params;
     const { status } = req.body;
-    const updateDoc = { status };
-    if (status === 'used') {
-      updateDoc.used_date = new Date();
-    }
-    const updated = await VoucherUser.findByIdAndUpdate(
-      req.params.id,
-      updateDoc,
-      { new: true, runValidators: true }
-    )
-    .populate('user_id','name email')
-    .populate('voucher_id','code discount_percent');
-    res.json({ msg: 'OK', data: updated });
-  } catch (err) {
-    res.status(400).json({ msg: err.message });
+    const doc = await VoucherUser.findByIdAndUpdate(id, { status }, { new: true });
+    if (!doc) return res.status(404).json({ success: false, msg: 'Không tìm thấy record' });
+    res.json({ success: true, data: doc });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: e.message });
   }
 };
 
-module.exports = controller;
+exports.remove = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await VoucherUser.findByIdAndDelete(id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: e.message });
+  }
+};

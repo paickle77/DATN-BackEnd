@@ -23,6 +23,7 @@ const billdetails = require('../controllers/api.billdetails.controller');
 const voucher_user = require('../controllers/api.voucher_user.controller');
 const shipperCtrl = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
+const voucherUserAdminCtrl = require('../controllers/api.voucherUserAdmin.controller');
 
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
@@ -148,20 +149,26 @@ router.put('/notifications/:id', api_auth, notificationCtrl.Edit); // ✅ Mobile
 router.delete('/notifications/:id', api_auth, notificationCtrl.Delete); // ✅ Web admin only
 
 // ——— CRUD cho Vouchers ———
-router.get('/vouchers', voucherCtrl.getList);
-router.get('/vouchers/:id', voucherCtrl.GetOne);
-router.post('/vouchers', requireRole('admin'), voucherCtrl.Add);
-router.put('/vouchers/:id', requireRole('admin'), voucherCtrl.Edit);
-router.delete('/vouchers/:id', requireRole('admin'), voucherCtrl.Delete);
+// (dùng đúng tên hàm trong controllers/api.voucher.controller.js)
+router.get('/vouchers', voucherCtrl.list);
+router.post('/vouchers', api_auth, requireRole('admin'), voucherCtrl.create);
+router.put('/vouchers/:id', api_auth, requireRole('admin'), voucherCtrl.update);
+router.delete('/vouchers/:id', api_auth, requireRole('admin'), voucherCtrl.remove);
 
-// ——— CRUD cho Voucher Users ———
-router.get('/getallvoucher_users', voucher_user.GetAllVoucher_user);
-router.get('/voucher_users', voucher_user.getList);
-router.get('/voucher_users/:id', voucher_user.GetOne);
-router.post('/voucher_users', voucher_user.Add);
-router.put('/voucher_users/:id', voucher_user.Edit);
-router.delete('/voucher_users/:id', voucher_user.Delete);
-router.get('/voucher_users/user/:userId', voucher_user.GetVoucherUserByUserId);
+// user apply voucher
+router.post('/vouchers/apply', voucherCtrl.apply);
+
+// ——— VOUCHER USERS (phía user) ———
+// (dùng đúng tên hàm trong controllers/api.voucher_user.controller.js)
+router.get('/voucher_users/my', voucher_user.myList);
+router.post('/voucher_users/save', voucher_user.saveVoucher);
+
+// ——— VOUCHER USERS (phía admin) ———
+// (dùng đúng tên hàm trong controllers/api.voucherUserAdmin.controller.js)
+router.get('/admin/voucher_users', api_auth, requireRole('admin'), voucherUserAdminCtrl.adminList);
+router.put('/admin/voucher_users/:id', api_auth, requireRole('admin'), voucherUserAdminCtrl.updateStatus);
+router.delete('/admin/voucher_users/:id', api_auth, requireRole('admin'), voucherUserAdminCtrl.remove);
+
 
 // ——— CRUD cho Payments ———
 router.get('/payments', paymentCtrl.getList);
