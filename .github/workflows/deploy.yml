@@ -1,0 +1,48 @@
+name: Deploy  CakeShop to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to VPS via SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no root@14.225.198.220 << 'EOF'
+            set -e
+
+            echo "📁 Đến thư mục dự án"
+            cd /root/CakeShop
+
+            echo "🔄 Pull code mới nhất"
+            git reset --hard
+            git clean -fd
+            git pull origin main
+
+            echo "📦 Cài đặt dependencies"
+            npm install
+
+            echo "🛠️ Build project bằng npm"
+            npm run start
+
+
+            echo "🚀 Khởi động lại với PM2 ở port 5555"
+            pm2 describe CakeShop > /dev/null
+            if [ $? -eq 0 ]; then
+              pm2 restart CakeShop
+            else
+             PORT=5555 pm2 start "npm start" --name CakeShop --env 
+            fi
+          EOF
