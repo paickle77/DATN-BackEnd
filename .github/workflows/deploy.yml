@@ -43,6 +43,6 @@ jobs:
             if [ $? -eq 0 ]; then
               pm2 restart CakeShop
             else
-             PORT=5555 pm2 start "npm start" --name CakeShop --env 
+             PORT=5555 pm2 start "npm run start" --name CakeShop
             fi
           EOF
