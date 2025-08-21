@@ -3,7 +3,6 @@
 /**
  * Module dependencies.
  */
-
 var app = require('../app');
 var debug = require('debug')('cakeshopeapi:server');
 var http = require('http');
@@ -21,33 +20,23 @@ app.set('port', port);
 var server = http.createServer(app);
 
 /**
- * Setup Socket.IO
+ * Setup Socket.IO (CORS tùy FE của bạn)
  */
 var io = new Server(server, {
   cors: {
-    origin: "*", // hoặc cấu hình domain admin web
+    // Đặt cụ thể domain FE nếu cần (an toàn hơn "*")
+    // origin: "http://192.168.0.110:5173",
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
 
-// Lắng nghe sự kiện socket
-io.on("connection", (socket) => {
-  console.log("🔌 Client connected:", socket.id);
-
-  socket.on("join", (userId) => {
-    socket.join(userId);
-    console.log(`✅ User ${userId} đã join room`);
-  });
-
-  socket.on("sendMessage", (msg) => {
-    console.log("📩 Tin nhắn:", msg);
-    io.to(msg.receiverId).emit("receiveMessage", msg);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("❌ Client disconnected:", socket.id);
-  });
-});
+/**
+ * Gắn handler 1 CHỖ DUY NHẤT
+ * -> TẤT CẢ logic join/emit/sendMessage… nằm trong services/socket.service.js
+ */
+const socketHandler = require('../services/socket.service'); // đúng path từ /bin
+socketHandler(io);
 
 /**
  * Listen on provided port, on all network interfaces.
@@ -61,13 +50,8 @@ server.on('listening', onListening);
  */
 function normalizePort(val) {
   var port = parseInt(val, 10);
-
-  if (isNaN(port)) {
-    return val; // named pipe
-  }
-  if (port >= 0) {
-    return port; // port number
-  }
+  if (isNaN(port)) return val;     // named pipe
+  if (port >= 0) return port;      // port number
   return false;
 }
 
@@ -76,18 +60,15 @@ function normalizePort(val) {
  */
 function onError(error) {
   if (error.syscall !== 'listen') throw error;
-
   var bind = typeof port === 'string' ? 'Pipe ' + port : 'Port ' + port;
 
   switch (error.code) {
     case 'EACCES':
       console.error(bind + ' requires elevated privileges');
       process.exit(1);
-      break;
     case 'EADDRINUSE':
       console.error(bind + ' is already in use');
       process.exit(1);
-      break;
     default:
       throw error;
   }
