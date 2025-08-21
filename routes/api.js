@@ -24,6 +24,7 @@ const voucher_user = require('../controllers/api.voucher_user.controller');
 const shipperCtrl = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
 const voucherUserAdminCtrl = require('../controllers/api.voucherUserAdmin.controller');
+const messageCtrl = require('../controllers/api.message.controller');
 
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
@@ -227,5 +228,11 @@ router.get('/sizes/:id', sizeCtrl.GetOne);
 router.post('/sizes', sizeCtrl.Add); // Enhanced with stock update
 router.put('/sizes/:id', sizeCtrl.Edit); // Enhanced with stock update  
 router.delete('/sizes/:id', sizeCtrl.Delete); // Enhanced with stock update
+
+// ——— CRUD cho Message ———
+// routes/message.route.js
+router.get('/messages/conversations', messageCtrl.getConversations);
+router.get("/messages/:userId", messageCtrl.getMessages);
+router.post('/messages', messageCtrl.sendMessage);
 
 module.exports = router;
