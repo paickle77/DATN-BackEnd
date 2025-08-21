@@ -1,3 +1,41 @@
 const Base = require('./base.controller');
 const Cart = require('../models/cart.model');
 module.exports = Base(Cart);
+
+
+module.exports.GetAllCart=async(req,res)=>{
+    try {
+        const list= await Cart.find()
+        .populate('product_id')
+        .populate('size_id')
+       .exec();
+
+        // 🔐 Lọc bỏ những cart không có product hoặc size (null do bị xóa hoặc lỗi DB)
+    const validList = list.filter(item => item.product_id && item.size_id);
+
+        res.json({msg: "OK ",data :list});
+    } catch (error) {
+        res.status(500).json({error:error.message})
+    }
+}
+
+
+//API xóa toàn bộ giỏ hàng theo user_id
+module.exports.DeleteCartByAccount = async (req, res) => {
+  try {
+    const { accountId } = req.params;
+
+    if (!accountId) {
+      return res.status(400).json({ msg: 'Thiếu accountId trong URL' });
+    }
+
+    const result = await Cart.deleteMany({ Account_id: accountId });
+
+    res.json({
+      msg: `Đã xóa ${result.deletedCount} sản phẩm trong giỏ hàng của account ${accountId}`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+

@@ -1,56 +1,95 @@
-// controllers/api.auth.controller.js
-const jwt       = require('jsonwebtoken');
-const bcrypt    = require('bcrypt');
-const UserModel = require('../models/user.model');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const Account = require('../models/account.model');       // model chứa email, password
+const User = require('../models/user.model');            // profile user
+const Shipper = require('../models/shipper.model');      // profile shipper
 require('dotenv').config();
 
+
+// ───────── LOGIN ─────────
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    // DÙNG UserModel thay vì User
-    const user = await UserModel.findOne({ email });
-    if (!user) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    const account = await Account.findOne({ email });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    if (!account) {
+      return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
+    }
 
-    if (user.role !== 'admin') {
-      return res.status(403).json({ error: 'Chỉ admin mới được phép đăng nhập' });
+    // ✅ Kiểm tra xem mật khẩu có tồn tại và đúng định dạng
+    if (!account.password || !account.password.startsWith('$2')) {
+      return res.status(401).json({ error: 'Tài khoản không hợp lệ hoặc chưa hỗ trợ đăng nhập bằng mật khẩu' });
+    }
+
+    const match = await bcrypt.compare(password, account.password);
+    if (!match) {
+      return res.status(401).json({ error: 'Sai email hoặc mật khẩu' });
     }
 
     const token = jwt.sign(
-      { _id: user._id, role: user.role },
+      { _id: account._id, role: account.role },
       process.env.TOKEN_SEC_KEY,
       { expiresIn: '8h' }
     );
-    user.token = token;
-    await user.save();
 
-    res.json({ msg: 'OK', data: { token } });
+    let profile = null;
+
+    if (account.role === 'user' || account.role === 'admin') {
+      profile = await User.findOne({ account_id: account._id });
+    } else if (account.role === 'shipper') {
+      profile = await Shipper.findOne({ account_id: account._id });
+    }
+
+    res.json({
+      success: true,
+      message: 'Đăng nhập thành công',
+      data: {
+        token,
+        account: {
+          _id: account._id,
+          email: account.email,
+          role: account.role,
+          is_lock: account.is_lock,
+        },
+        profile
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Lỗi server' });
   }
 };
-
 exports.register = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password } = req.body;
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Thiếu email hoặc mật khẩu' });
     }
 
-    const exists = await UserModel.findOne({ email });  // DÙNG UserModel
+    const exists = await Account.findOne({ email });
     if (exists) {
       return res.status(400).json({ error: 'Email đã tồn tại' });
     }
 
     const hash = await bcrypt.hash(password, 10);
-    // DÙNG UserModel để khởi tạo
-    const u = new UserModel({ email, password: hash, name, role: 'admin' });
-    await u.save();
+    const account = new Account({
+      email,
+      password: hash,
+      role: 'user',
+      provider: 'local'
+    });
+    await account.save();
 
-    res.json({ msg: 'OK', data: u });
+    res.status(201).json({
+      success: true,
+      message: 'Tạo tài khoản thành công',
+      data: {
+        _id: account._id, // 👈 frontend cần key này
+        email: account.email,
+        role: account.role
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

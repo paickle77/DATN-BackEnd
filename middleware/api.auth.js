@@ -1,6 +1,5 @@
-// middleware/api.auth.js
-const jwt       = require('jsonwebtoken');
-const UserModel = require('../models/user.model');
+const jwt = require('jsonwebtoken');
+const AccountModel = require('../models/account.model');
 require('dotenv').config();
 
 const api_auth = async (req, res, next) => {
@@ -13,22 +12,14 @@ const api_auth = async (req, res, next) => {
   try {
     const payload = jwt.verify(token, process.env.TOKEN_SEC_KEY);
 
-    // Chỉ tìm theo _id, không bắt buộc phải đúng token stored
-    const user = await UserModel.findById(payload._id);
-    if (!user) throw new Error('Không xác định người dùng');
+    const account = await AccountModel.findById(payload._id);
+    if (!account) throw new Error('Không tìm thấy tài khoản');
 
-    // Nếu bạn muốn ép user phải unlock trước khi dùng API:
-    if (user.is_lock) {
+    if (account.is_lock) {
       return res.status(403).json({ error: 'Tài khoản đã bị khóa' });
     }
 
-    // Kiểm tra role admin
-    if (user.role !== 'admin') {
-      return res.status(403).json({ error: 'Bạn không có quyền truy cập' });
-    }
-
-    // Gắn user vào req và tiếp tục
-    req.user = user;
+    req.account = account; // ✅ gán account (không còn là req.user)
     next();
   } catch (err) {
     console.error(err);
@@ -36,4 +27,17 @@ const api_auth = async (req, res, next) => {
   }
 };
 
-module.exports = { api_auth };
+// ✅ Phân quyền đúng theo role từ account
+const requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.account || !roles.includes(req.account.role)) {
+      return res.status(403).json({ error: 'Bạn không có quyền truy cập' });
+    }
+    next();
+  };
+};
+
+module.exports = {
+  api_auth,
+  requireRole,
+};
