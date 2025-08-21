@@ -1,4 +1,4 @@
-name: Deploy  CakeShop to VPS
+name: Deploy CakeShop to VPS
 
 on:
   push:
@@ -32,17 +32,15 @@ jobs:
             git pull origin main
 
             echo "📦 Cài đặt dependencies"
-            npm install
-
-            echo "🛠️ Build project bằng npm"
-            npm run start
-
+            npm install --production
 
             echo "🚀 Khởi động lại với PM2 ở port 5555"
             pm2 describe CakeShop > /dev/null
             if [ $? -eq 0 ]; then
               pm2 restart CakeShop
             else
-             PORT=5555 pm2 start "npm run start" --name CakeShop
+              PORT=5555 pm2 start npm --name "CakeShop" -- run start
             fi
+
+            echo "✅ Deploy hoàn tất!"
           EOF
