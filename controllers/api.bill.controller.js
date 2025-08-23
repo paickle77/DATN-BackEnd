@@ -164,7 +164,7 @@ module.exports.AssignShipper = async (req, res) => {
     bill.status = 'shipping';
     await bill.save();
 
-    res.json({ msg: 'Shipper nhận đơn thành công', data: bill });
+    res.json({success: true, msg: 'Shipper nhận đơn thành công', data: bill});
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
