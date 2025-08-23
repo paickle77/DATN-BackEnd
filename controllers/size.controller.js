@@ -63,35 +63,72 @@ module.exports.Delete = async (req, res) => {
     res.status(400).json({ msg: err.message });
   }
 };
-// ✅ Giảm số lượng size theo body
+
+// ✅ Cập nhật method giảm số lượng - không cần branch_id
 module.exports.DecreaseQuantity = async (req, res) => {
   try {
     const { sizeId, quantityToDecrease } = req.body;
 
-    if (!sizeId || typeof quantityToDecrease !== 'number' || quantityToDecrease <= 0) {
-      return res.status(400).json({ msg: 'Dữ liệu không hợp lệ', data: null });
+    // Kiểm tra input
+    if (!sizeId || !quantityToDecrease) {
+      return res.status(400).json({ 
+        msg: 'sizeId và quantityToDecrease là bắt buộc', 
+        data: null 
+      });
     }
 
+    if (typeof quantityToDecrease !== 'number' || quantityToDecrease <= 0) {
+      return res.status(400).json({ 
+        msg: 'quantityToDecrease phải là số dương', 
+        data: null 
+      });
+    }
+
+    // Tìm size theo ID
     const size = await sizes.findById(sizeId);
     if (!size) {
-      return res.status(404).json({ msg: 'Không tìm thấy size', data: null });
+      return res.status(404).json({ 
+        msg: 'Không tìm thấy size', 
+        data: null 
+      });
     }
 
+    // Kiểm tra số lượng có đủ không
     if (size.quantity < quantityToDecrease) {
-      return res.status(400).json({ msg: `Số lượng không đủ. Hiện còn ${size.quantity}`, data: null });
+      return res.status(400).json({ 
+        msg: 'Số lượng không đủ', 
+        data: { 
+          available: size.quantity, 
+          requested: quantityToDecrease 
+        } 
+      });
     }
 
+    // Giảm số lượng
     size.quantity -= quantityToDecrease;
     const updatedSize = await size.save();
 
-    // Tự động cập nhật lại stock của product liên quan
+    // Tự động cập nhật stock của product tương ứng
     const product = await Product.findById(size.product_id);
     if (product) {
       await product.updateStockFromSizes();
     }
 
-    return res.json({ msg: 'Đã cập nhật số lượng', data: updatedSize });
-  } catch (err) {
-    return res.status(500).json({ msg: 'Lỗi server: ' + err.message, data: null });
+    res.json({ 
+      msg: 'Giảm số lượng thành công', 
+      data: { 
+        sizeId: updatedSize._id,
+        newQuantity: updatedSize.quantity,
+        decreased: quantityToDecrease,
+        size: updatedSize.size
+      } 
+    });
+
+  } catch (error) {
+    console.error('❌ Lỗi giảm số lượng:', error);
+    res.status(500).json({ 
+      msg: `Lỗi server: ${error.message}`, 
+      data: null 
+    });
   }
 };
