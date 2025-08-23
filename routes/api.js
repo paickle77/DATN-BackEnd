@@ -30,6 +30,7 @@ const shipperCtrl        = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
 const aiCtrl = require('../controllers/api.ai.controller');
 const messageCtrl = require('../controllers/api.message.controller');
+const vnpayRoutes = require('../vnpay/vnpay.routes');
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
 router.post('/register', authCtrl.register);
@@ -88,7 +89,8 @@ router.delete('/bills/:id',    billCtrl.Delete);
 router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
 router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
 router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
-router.post  ('/bills/CreatePending',      billCtrl.CreatePendingBill); // đổi path cho thống nhất
+router.post  ('/bills/CreatePending',      billCtrl.CreatePendingBill); // COD only
+router.post  ('/bills/CreateAfterPayment', billCtrl.CreateBillAfterPayment); // ✅ Sau thanh toán online
 
 
 // ——— CRUD cho Bill Details ———
@@ -284,5 +286,9 @@ router.get('/sizes/:id', sizeCtrl.GetOne);
 router.post('/sizes', requireRole('admin'), sizeCtrl.Add);
 router.put('/sizes/:id', requireRole('admin'), sizeCtrl.Edit);
 router.delete('/sizes/:id', requireRole('admin'), sizeCtrl.Delete);
+
+//vnpay routes
+router.use('/vnpay', vnpayRoutes);
+
 
 module.exports = router;
