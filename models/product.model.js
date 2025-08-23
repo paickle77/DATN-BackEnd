@@ -6,7 +6,6 @@ const ProductSchema = new mongoose.Schema({
   price:          { type: Number, required: true },
   discount_price: { type: Number, default: 0 },
   image_url:      { type: String },
-  branch_id:      { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   is_active:      { type: Boolean, default: true },
   rating:         { type: Number, default: 0 },
   stock:          { type: Number, default: 0 }, // ✅ Thêm field stock

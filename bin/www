@@ -31,23 +31,27 @@ var io = new Server(server, {
 });
 
 // Lắng nghe sự kiện socket
-io.on("connection", (socket) => {
-  console.log("🔌 Client connected:", socket.id);
+// io.on("connection", (socket) => {
+//   console.log("🔌 Client connected:", socket.id);
 
-  socket.on("join", (userId) => {
-    socket.join(userId);
-    console.log(`✅ User ${userId} đã join room`);
-  });
+//   socket.on("join", (userId) => {
+//     socket.join(userId);
+//     console.log(`✅ User ${userId} đã join room`);
+//   });
 
-  socket.on("sendMessage", (msg) => {
-    console.log("📩 Tin nhắn:", msg);
-    io.to(msg.receiverId).emit("receiveMessage", msg);
-  });
+//   socket.on("sendMessage", (msg) => {
+//     console.log("📩 Tin nhắn:", msg);
+//     io.to(msg.receiverId).emit("receiveMessage", msg);
+//   });
 
-  socket.on("disconnect", () => {
-    console.log("❌ Client disconnected:", socket.id);
-  });
-});
+//   socket.on("disconnect", () => {
+//     console.log("❌ Client disconnected:", socket.id);
+//   });
+// });
+
+// Sử dụng socket service
+const socketHandler = require('../services/socket.service');
+socketHandler(io);
 
 /**
  * Listen on provided port, on all network interfaces.

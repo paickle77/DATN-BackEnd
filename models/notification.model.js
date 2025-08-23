@@ -7,6 +7,11 @@ const NotificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  title: {
+    type: String,
+    required: true,
+    default: 'Thông báo mới'
+  },
   content: {
     type: String,
     required: true
@@ -15,15 +20,13 @@ const NotificationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // giờ title không bắt buộc, có thể mặc định ""
-  type: {
+  icon: {
     type: String,
-    enum: ['global', 'personal'], // global: toàn bộ user, personal: riêng user_id
-    default: 'personal'
+    default: 'notifications'
   }
 }, {
   collection: 'notifications',
-  timestamps: { createdAt: 'created_at', updatedAt: false }
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
 module.exports = mongoose.model('Notification', NotificationSchema);

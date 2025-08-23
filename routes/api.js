@@ -132,8 +132,8 @@ router.put('/carts/:id', cartCtrl.Edit);
 router.delete('/carts/:id', cartCtrl.Delete);
 // API xóa toàn bộ giỏ hàng theo user_id
 router.delete('/carts/account/:accountId', cartCtrl.DeleteCartByAccount);
-
-
+// Thêm API lấy giỏ hàng theo user hiện tại
+router.get('/GetCartByAccount/:accountId', cartCtrl.GetCartByAccount);
 
 // Favorites
 router.get('/favorites', favoriteCtrl.getList);
@@ -144,13 +144,17 @@ router.post('/favorites', favoriteCtrl.Add);
 router.put('/favorites/:id', favoriteCtrl.Edit);
 router.delete('/favorites/:id', favoriteCtrl.Delete);
 
-// Notifications
+// Notifications - Sắp xếp routes cụ thể trước
 router.get('/notifications', notificationCtrl.getList);
-router.get('/notifications/:id', notificationCtrl.GetOne);
 router.get('/notifications/user/:userId', notificationCtrl.getListByUser);
+router.get('/notifications/unread-count/:userId', notificationCtrl.getUnreadCount);
+router.put('/notifications/mark-all-read/:userId', notificationCtrl.markAllAsRead);
+router.delete('/notifications/delete-all-read/:userId', notificationCtrl.deleteAllRead);
+router.get('/notifications/:id', notificationCtrl.GetOne);
 router.post('/notifications', notificationCtrl.Add);
+router.put('/notifications/:id/mark-read', notificationCtrl.markAsRead);
 router.put('/notifications/:id', notificationCtrl.Edit);
-router.delete('/notifications/:id', notificationCtrl.Delete);
+router.delete('/notifications/:id', notificationCtrl.deleteNotification);
 
 // Vouchers
 router.get('/vouchers', voucherCtrl.getList);
@@ -275,7 +279,7 @@ router.get('/products/search', productCtrl.SearchByName);
 
 // Sizes — chỉ cho admin
 router.get('/sizes', sizeCtrl.getList);
-router.post('/decrease-quantity', sizeCtrl.DecreaseQuantity);
+router.post('/decrease-quantity', sizeCtrl.DecreaseQuantity); // ✅ Đổi lại thành sizeCtrl
 router.get('/sizes/:id', sizeCtrl.GetOne);
 router.post('/sizes', requireRole('admin'), sizeCtrl.Add);
 router.put('/sizes/:id', requireRole('admin'), sizeCtrl.Edit);
