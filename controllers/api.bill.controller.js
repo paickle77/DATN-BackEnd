@@ -49,7 +49,7 @@ module.exports.GetOne = async (req, res) => {
   }
 };
 
-// POST /CreatePendingBill
+// POST /CreatePendingBill - CHỈ cho COD
 module.exports.CreatePendingBill = async (req, res) => {
   try {
     const {
@@ -62,7 +62,7 @@ module.exports.CreatePendingBill = async (req, res) => {
       discount_amount,
       voucher_code,
       note,
-      shipping_fee, // ✅ Thêm trường này
+      shipping_fee,
       items,
     } = req.body;
 
@@ -70,8 +70,18 @@ module.exports.CreatePendingBill = async (req, res) => {
       return res.status(400).json({ msg: 'Thiếu dữ liệu bắt buộc' });
     }
 
+    // ✅ CHỈ cho phép COD tạo đơn ngay
+    const paymentMethodLower = payment_method.toLowerCase();
+    if (paymentMethodLower.includes('vnpay') || 
+        paymentMethodLower.includes('momo') || 
+        paymentMethodLower.includes('zalopay') ||
+        paymentMethodLower.includes('online')) {
+      return res.status(400).json({ 
+        msg: 'Thanh toán online phải hoàn thành trước khi tạo đơn hàng' 
+      });
+    }
 
-    // 1️⃣ Tạo hóa đơn
+    // 1️⃣ Tạo hóa đơn với status pending
     const bill = await Bill.create({
       Account_id,
       address_id,
@@ -89,7 +99,6 @@ module.exports.CreatePendingBill = async (req, res) => {
 
     // 2️⃣ Lưu chi tiết với SNAPSHOT đầy đủ
     for (const item of items) {
-      // ✅ Lấy thông tin sản phẩm để tạo snapshot
       const [product, category] = await Promise.all([
         Product.findById(item.product_id).lean(),
         Product.findById(item.product_id).populate('category_id', 'name').lean()
@@ -100,7 +109,6 @@ module.exports.CreatePendingBill = async (req, res) => {
         continue;
       }
 
-      // ✅ Tìm thông tin size
       const sizeInfo = await Size.findOne({
         product_id: item.product_id,
         size: item.size
@@ -108,8 +116,6 @@ module.exports.CreatePendingBill = async (req, res) => {
 
       const priceIncrease = sizeInfo?.price_increase || 0;
       const basePrice = product.discount_price || product.price;
-
-      // ✅ SỬ DỤNG GIÁ TỪ FE (đã tính chính xác)
       const unitPrice = item.unit_price || (basePrice + priceIncrease);
 
       await BillDetail.create({
@@ -117,10 +123,8 @@ module.exports.CreatePendingBill = async (req, res) => {
         product_id: item.product_id,
         size: item.size,
         quantity: item.quantity,
-        unit_price: unitPrice, // ✅ Dùng giá từ FE
+        unit_price: unitPrice,
         total: unitPrice * item.quantity,
-
-        // ✅ SNAPSHOT ĐẦY ĐỦ
         product_snapshot: {
           name: product.name,
           base_price: product.price,
@@ -133,9 +137,127 @@ module.exports.CreatePendingBill = async (req, res) => {
       });
     }
 
-    res.json({ msg: 'Tạo đơn hàng thành công', billId: bill._id });
+    res.json({ 
+      msg: 'Tạo đơn hàng thành công', 
+      billId: bill._id,
+      status: 'pending',
+      requiresPayment: false
+    });
   } catch (err) {
     console.error('❌ Lỗi tạo đơn hàng:', err);
+    res.status(500).json({ msg: 'Lỗi server', error: err.message });
+  }
+};
+
+// POST /CreateBillAfterPayment - Tạo đơn sau khi thanh toán online thành công
+module.exports.CreateBillAfterPayment = async (req, res) => {
+  try {
+    console.log('📊 CreateBillAfterPayment - Request body:', JSON.stringify(req.body, null, 2));
+    
+    const {
+      Account_id,
+      address_id,
+      shipping_method,
+      payment_method,
+      original_total,
+      total,
+      discount_amount,
+      voucher_code,
+      note,
+      shipping_fee,
+      items,
+      payment_transaction // Thông tin giao dịch
+    } = req.body;
+
+    console.log('🔍 Extracted fields:', {
+      Account_id: Account_id || 'MISSING',
+      address_id: address_id || 'MISSING',
+      shipping_method: shipping_method || 'MISSING',
+      payment_method: payment_method || 'MISSING',
+      original_total: original_total ?? 'MISSING',
+      total: total ?? 'MISSING',
+      items: items ? items.length + ' items' : 'MISSING',
+      payment_transaction: payment_transaction ? 'PROVIDED' : 'NULL'
+    });
+
+    if (!Account_id || !address_id || !shipping_method || !payment_method || original_total == null || total == null) {
+      console.error('❌ Missing required fields:', {
+        Account_id: !!Account_id,
+        address_id: !!address_id,
+        shipping_method: !!shipping_method,
+        payment_method: !!payment_method,
+        original_total: original_total != null,
+        total: total != null
+      });
+      return res.status(400).json({ msg: 'Thiếu dữ liệu bắt buộc' });
+    }
+
+    // 1️⃣ Tạo hóa đơn với status pending (chờ admin xác nhận)
+    const bill = await Bill.create({
+      Account_id,
+      address_id,
+      shipping_method,
+      payment_method,
+      original_total,
+      total,
+      discount_amount,
+      voucher_code,
+      note,
+      shipping_fee,
+      address_snapshot: req.body.address_snapshot || {},
+      status: 'pending',
+      payment_confirmed_at: new Date(),
+      payment_transaction: payment_transaction || null
+    });
+
+    // 2️⃣ Lưu chi tiết với SNAPSHOT đầy đủ
+    for (const item of items) {
+      const [product, category] = await Promise.all([
+        Product.findById(item.product_id).lean(),
+        Product.findById(item.product_id).populate('category_id', 'name').lean()
+      ]);
+
+      if (!product) {
+        console.warn(`⚠️ Product ${item.product_id} not found, skipping...`);
+        continue;
+      }
+
+      const sizeInfo = await Size.findOne({
+        product_id: item.product_id,
+        size: item.size
+      }).lean();
+
+      const priceIncrease = sizeInfo?.price_increase || 0;
+      const basePrice = product.discount_price || product.price;
+      const unitPrice = item.unit_price || (basePrice + priceIncrease);
+
+      await BillDetail.create({
+        bill_id: bill._id,
+        product_id: item.product_id,
+        size: item.size,
+        quantity: item.quantity,
+        unit_price: unitPrice,
+        total: unitPrice * item.quantity,
+        product_snapshot: {
+          name: product.name,
+          base_price: product.price,
+          discount_price: product.discount_price,
+          image_url: product.image_url,
+          selected_size: item.size,
+          size_price_increase: priceIncrease,
+          final_unit_price: unitPrice
+        }
+      });
+    }
+
+    console.log('✅ Created bill after successful payment:', bill._id);
+    res.json({ 
+      msg: 'Tạo đơn hàng sau thanh toán thành công', 
+      billId: bill._id,
+      status: 'pending'
+    });
+  } catch (err) {
+    console.error('❌ Lỗi tạo đơn hàng sau thanh toán:', err);
     res.status(500).json({ msg: 'Lỗi server', error: err.message });
   }
 };
