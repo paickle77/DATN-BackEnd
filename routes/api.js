@@ -66,6 +66,25 @@ router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
 router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
 router.delete('/shippers/:id', shipperCtrl.Delete);
 
+// ✅ THÊM route GET accounts cho web admin
+router.get('/accounts', api_auth, requireRole('admin'), accountCtrl.getList);
+router.get('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.GetOne);
+
+router.get('/shippers/account/:account_id', shipperCtrl.getShipperByAccountId); // ✅ Sửa route path
+// ✅ SỬA: Thêm upload.single('image') cho POST shippers để admin web có thể upload ảnh
+router.post('/shippers', api_auth, upload.single('image'), shipperCtrl.Add);
+// 🆕 THÊM: Route tạo account + shipper mới
+router.post('/shippers/create-with-account', api_auth, requireRole('admin'), upload.single('image'), shipperCtrl.createAccountAndShipper);
+router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
+router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
+router.delete('/shippers/:id', api_auth, requireRole('admin'), shipperCtrl.Delete);
+
+// ✅ Route khóa/mở khóa account CHỈ CHO WEB ADMIN
+router.put('/accounts/:id/lock', api_auth, requireRole('admin'), accountCtrl.lockAccount); // Khóa tài khoản
+router.put('/accounts/:id/unlock', api_auth, requireRole('admin'), accountCtrl.unlockAccount); // Mở khóa tài khoản
+// ✅ THÊM: Route xóa account (CHỈ CHO WEB ADMIN)
+router.delete('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.Delete); // Xóa account
+
 // ——— CRUD cho bill ———
 router.get('/bills', billCtrl.getList);
 router.get('/GetAllBills', billCtrl.GetAllBills);

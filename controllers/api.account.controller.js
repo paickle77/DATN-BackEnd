@@ -5,6 +5,26 @@ const mongoose = require('mongoose');
 const Base = require('./base.controller');
 const accountController = Base(Account);
 
+// ✅ THÊM: Method lấy danh sách accounts cho web admin
+accountController.getList = async (req, res) => {
+  try {
+    const accounts = await Account.find()
+      .select('-password -otp -otpExpires') // Không trả về password và OTP
+      .sort({ created_at: -1 });
+    
+    res.json({
+      success: true,
+      data: accounts
+    });
+  } catch (err) {
+    console.error('❌ Lỗi lấy danh sách accounts:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách accounts'
+    });
+  }
+};
+
 // ✅ Gửi OTP để reset mật khẩu
 accountController.sendOTP = async (req, res) => {
   try {
