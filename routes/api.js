@@ -89,6 +89,8 @@ router.delete('/bills/:id',    billCtrl.Delete);
 router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
 router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
 router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
+router.post  ('/bills/cancel-by-customer', billCtrl.CancelOrderByCustomer); // ✅ Khách hàng hủy đơn
+router.post  ('/bills/process-refund',     billCtrl.ProcessRefund); // ✅ Admin xử lý hoàn tiền
 router.post  ('/bills/CreatePending',      billCtrl.CreatePendingBill); // COD only
 router.post  ('/bills/CreateAfterPayment', billCtrl.CreateBillAfterPayment); // ✅ Sau thanh toán online
 
@@ -177,8 +179,10 @@ router.get('/voucher_users/account/:accountId', voucher_user.GetVoucherUserByAcc
 router.post('/voucher_users/save', voucher_user.SaveVoucherToUser);
 // API sử dụng voucher với logic kiểm tra đầy đủ
 router.post('/voucher_users/use', voucher_user.UseVoucher);
-// API đánh dấu voucher đã sử dụng khi đơn hàng thành công
-router.post('/voucher_users/mark-used', voucher_user.MarkVoucherAsUsed);
+// API đánh dấu voucher đang sử dụng (available -> in_use)
+router.post('/voucher_users/mark-in-use', voucher_user.MarkVoucherInUse);
+// ❌ API đánh dấu voucher đã sử dụng - KHÔNG CẦN THIẾT NỮA (chỉ có 2 status)
+// router.post('/voucher_users/mark-used', voucher_user.MarkVoucherAsUsed);
 // API cập nhật trạng thái voucher hết hạn tự động
 router.post('/voucher_users/update-expired', voucher_user.UpdateExpiredVouchers);
 

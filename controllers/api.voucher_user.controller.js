@@ -53,27 +53,38 @@ module.exports.SaveVoucherToUser = async (req, res) => {
     //   });
     // }
 
-    // 4. Kiểm tra giới hạn max_usage_per_user
+    // 4. Kiểm tra giới hạn max_usage_per_user - Chỉ đếm voucher đã sử dụng
     if (voucher.max_usage_per_user > 0) {
-      const userVoucherCount = await voucher_user.countDocuments({
+      const userUsedCount = await voucher_user.countDocuments({
         Account_id,
         voucher_id,
-        status: { $in: ['active', 'used'] } // Đếm cả active và used
+        status: 'in_use' // ✅ Chỉ đếm voucher đã sử dụng
       });
 
-      if (userVoucherCount >= voucher.max_usage_per_user) {
+      // 🔍 DEBUG: Kiểm tra tất cả voucher của user này
+      const allUserVouchers = await voucher_user.find({
+        Account_id,
+        voucher_id
+      }).select('_id status bill_id saved_at used_at');
+      
+      console.log(`🔍 DEBUG - User ${Account_id} với voucher ${voucher.code}:`);
+      console.log(`📊 Used count (in_use): ${userUsedCount}/${voucher.max_usage_per_user}`);
+      console.log('📋 All vouchers:', allUserVouchers);
+
+      if (userUsedCount >= voucher.max_usage_per_user) {
         return res.status(400).json({
           success: false,
-          message: `Bạn đã đạt giới hạn ${voucher.max_usage_per_user} lần cho voucher này`,
+          message: `Bạn đã sử dụng ${userUsedCount}/${voucher.max_usage_per_user} lần cho voucher này`,
         });
       }
     }
 
-    // 5. Tạo mới voucher_user
+    // 5. Tạo mới voucher_user với status và code đúng
     const newVoucherUser = new voucher_user({
       Account_id,
       voucher_id,
-      status: 'active',
+      code: voucher.code, // ✅ Thêm code từ voucher gốc
+      status: 'available', // ✅ Dùng status mới
       saved_at: now
     });
 
@@ -128,7 +139,7 @@ module.exports.GetVoucherUserByAccountId = async (req, res) => {
     
     const docs = await voucher_user.find({ 
       Account_id: accountId,
-      status: 'active' // chỉ lấy voucher_user có status active
+      status: 'available' // ✅ CHỈ lấy voucher chưa sử dụng
     })
       .populate('voucher_id')
       .exec();
@@ -186,11 +197,11 @@ module.exports.UseVoucher = async (req, res) => {
       });
     }
 
-    // 2. Check voucher_user phải có status = active
-    if (voucherUser.status !== 'active') {
+    // 2. Check voucher_user phải có status = in_use (không phải active)
+    if (voucherUser.status !== 'in_use') {
       return res.status(400).json({
         success: false,
-        message: `Voucher đã được sử dụng hoặc hết hạn (trạng thái: ${voucherUser.status})`,
+        message: `Voucher đã được sử dụng hoặc chưa kích hoạt (trạng thái: ${voucherUser.status})`,
       });
     }
 
@@ -234,7 +245,7 @@ module.exports.UseVoucher = async (req, res) => {
       const userUsageCount = await voucher_user.countDocuments({
         Account_id: accountId,
         voucher_id: voucher._id,
-        status: 'used'
+        status: 'in_use' // ✅ Đếm voucher đã sử dụng (chỉ có in_use)
       });
 
       if (userUsageCount >= voucher.max_usage_per_user) {
@@ -247,8 +258,7 @@ module.exports.UseVoucher = async (req, res) => {
 
     // 4. Nếu tất cả điều kiện đều hợp lệ, tiến hành sử dụng voucher
     
-    // 4a. Update voucher_user
-    voucherUser.status = 'used';
+    // 4a. Update voucher_user: in_use → in_use (không thay đổi, vì đã là in_use)
     voucherUser.used_at = now;
     await voucherUser.save();
 
@@ -279,7 +289,60 @@ module.exports.UseVoucher = async (req, res) => {
   }
 };
 
-// API đánh dấu voucher đã sử dụng khi đơn hàng thành công
+// API đánh dấu voucher đang sử dụng (chuyển từ available -> in_use)
+module.exports.MarkVoucherInUse = async (req, res) => {
+  const { voucherUserId, billId } = req.body; // ✅ Thêm billId
+
+  if (!voucherUserId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Thiếu thông tin voucherUserId',
+    });
+  }
+
+  try {
+    // Tìm và cập nhật voucher_user từ available -> in_use
+    const updatedVoucherUser = await voucher_user.findOneAndUpdate(
+      { 
+        _id: voucherUserId,
+        status: 'available' // Chỉ cập nhật nếu đang ở trạng thái available
+      },
+      { 
+        status: 'in_use',
+        bill_id: billId || null, // ✅ Lưu bill_id nếu có
+        updated_at: new Date()
+      },
+      { new: true }
+    ).populate('voucher_id');
+
+    if (!updatedVoucherUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Voucher không tồn tại hoặc không ở trạng thái available',
+      });
+    }
+
+    console.log(`✅ Marked voucher ${updatedVoucherUser.voucher_id?.code} as in_use for user ${updatedVoucherUser.Account_id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã đánh dấu voucher đang sử dụng',
+      data: updatedVoucherUser,
+    });
+
+  } catch (error) {
+    console.error('❌ Lỗi khi đánh dấu voucher in_use:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi đánh dấu voucher đang sử dụng',
+      error: error.message,
+    });
+  }
+};
+
+// ❌ API đánh dấu voucher đã sử dụng khi đơn hàng thành công - KHÔNG CẦN THIẾT NỮA
+// Voucher chỉ có 2 trạng thái: available → in_use (không cần chuyển thành used)
+/* 
 module.exports.MarkVoucherAsUsed = async (req, res) => {
   const { voucherUserId } = req.body;
 
@@ -312,10 +375,10 @@ module.exports.MarkVoucherAsUsed = async (req, res) => {
       });
     }
 
-    if (voucherUser.status !== 'active') {
+    if (voucherUser.status !== 'in_use') {
       return res.status(400).json({
         success: false,
-        message: 'Voucher không ở trạng thái có thể sử dụng',
+        message: 'Voucher không ở trạng thái có thể sử dụng (phải là in_use)',
       });
     }
 
@@ -350,15 +413,16 @@ module.exports.MarkVoucherAsUsed = async (req, res) => {
     });
   }
 };
+*/
 
 // Hàm hỗ trợ: cập nhật trạng thái voucher hết hạn tự động
 module.exports.UpdateExpiredVouchers = async (req, res) => {
   try {
     const now = new Date();
     
-    // Tìm các voucher_user có status 'active' nhưng voucher gốc đã hết hạn
+    // Tìm các voucher_user có status 'available' nhưng voucher gốc đã hết hạn
     const expiredVoucherUsers = await voucher_user.find({
-      status: 'active'
+      status: 'available' // ✅ Chỉ kiểm tra voucher chưa dùng
     }).populate({
       path: 'voucher_id',
       match: { 
@@ -372,15 +436,12 @@ module.exports.UpdateExpiredVouchers = async (req, res) => {
     const expiredCount = expiredVoucherUsers.filter(vu => vu.voucher_id).length;
 
     if (expiredCount > 0) {
-      // Cập nhật trạng thái thành 'expired'
-      const updatePromises = expiredVoucherUsers
+      // Xóa voucher hết hạn (không cần chuyển status)
+      const deletePromises = expiredVoucherUsers
         .filter(vu => vu.voucher_id)
-        .map(vu => {
-          vu.status = 'expired';
-          return vu.save();
-        });
+        .map(vu => voucher_user.deleteOne({ _id: vu._id }));
 
-      await Promise.all(updatePromises);
+      await Promise.all(deletePromises);
     }
 
     return res.status(200).json({

@@ -12,9 +12,10 @@ const billSchema = new Schema({
   original_total: { type: Number, required: true }, // Tổng tiền trước giảm giá
   discount_amount: { type: Number, default: 0 }, // Số tiền giảm giá
   voucher_code: { type: String, default: '' }, // Mã voucher đã sử dụng
+  voucher_user_id: { type: Schema.Types.ObjectId, ref: "Voucher_User", default: null }, // Tham chiếu voucher_user
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'ready', 'shipping', 'done', 'cancelled', 'failed'],
+    enum: ['pending', 'confirmed', 'ready', 'shipping', 'done', 'cancelled', 'failed', 'refund_pending', 'refunded'],
     default: 'pending',
     required: true
   },
@@ -31,6 +32,10 @@ const billSchema = new Schema({
   payment_confirmed_at: { type: Date }, // Thời gian xác nhận thanh toán
   delivered_at: { type: Date }, // Thời gian giao hàng thành công
   proof_images: { type: String, default: '' }, // Hình ảnh chứng minh giao hàng (nếu có)
+  refund_requested_at: { type: Date }, // Thời gian yêu cầu hoàn tiền
+  refund_processed_at: { type: Date }, // Thời gian xử lý hoàn tiền
+  refund_amount: { type: Number, default: 0 }, // Số tiền hoàn
+  refund_reason: { type: String, default: '' }, // Lý do hoàn tiền
 }, { timestamps: true });
 
 // Index để tìm kiếm nhanh hơn
