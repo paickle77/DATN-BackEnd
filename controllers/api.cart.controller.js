@@ -1,5 +1,6 @@
 const Base = require('./base.controller');
 const Cart = require('../models/cart.model');
+const Size = require('../models/size.model');
 module.exports = Base(Cart);
 
 

@@ -4,6 +4,11 @@ const Voucher = require('../models/voucher.model');
 
 module.exports = Base(voucher_user);
 
+function isInDateRange(v) {
+  const now = new Date();
+  return v.start_date && v.end_date && now >= new Date(v.start_date) && now <= new Date(v.end_date);
+}
+
 // API lưu voucher với kiểm tra trùng lặp
 module.exports.SaveVoucherToUser = async (req, res) => {
   const { Account_id, voucher_id } = req.body;

@@ -8,6 +8,7 @@ module.exports.GetAllReview = async (req, res) => {
     const reviews = await Review.find()
       .populate('product_id')
       .populate('Account_id')
+      .populate('bill_id')
       .exec();
 
     // Lọc ra những review có product_id và Account_id hợp lệ
@@ -104,7 +105,8 @@ module.exports.checkBillReviewStatus = async (req, res) => {
         // Kiểm tra xem sản phẩm này đã được user này review chưa
         const existingReview = await Review.findOne({
           Account_id: accountId,
-          product_id: productId
+          product_id: productId,
+          bill_id: detail.bill_id._id
         });
 
         const hasReviewed = !!existingReview;
@@ -158,11 +160,8 @@ module.exports.checkProductReviewInBill = async (req, res) => {
 
     // Kiểm tra bill detail có tồn tại không
     const billDetail = await BillDetail.findOne({
-      'bill_id': billId,
-      $or: [
-        { 'product_id': productId },
-        // Có thể cần thêm logic cho product_snapshot
-      ]
+      bill_id: billId,
+      product_id: productId
     }).populate('bill_id');
 
     if (!billDetail) {
@@ -172,10 +171,12 @@ module.exports.checkProductReviewInBill = async (req, res) => {
     // Check trạng thái đơn hàng
     const canReview = billDetail.bill_id.status === 'done';
 
-    // Kiểm tra xem đã review chưa
+    // Kiểm tra xem đã review chưa (theo billDetailId thay vì chỉ productId)
     const existingReview = await Review.findOne({
       Account_id: accountId,
-      product_id: productId
+      product_id: productId,
+      bill_id: billId,
+      billDetail_id: billDetail._id   
     });
 
     res.json({
@@ -183,6 +184,7 @@ module.exports.checkProductReviewInBill = async (req, res) => {
       data: {
         billId,
         productId,
+        billDetailId: billDetail._id,
         hasReviewed: !!existingReview,
         reviewId: existingReview ? existingReview._id : null,
         canReview: canReview && !existingReview,
@@ -195,6 +197,7 @@ module.exports.checkProductReviewInBill = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Test API để debug dữ liệu
 module.exports.debugBillDetails = async (req, res) => {

@@ -8,6 +8,8 @@ const path = require('path');
 // ✅ Kế thừa 5 hàm CRUD mặc định
 module.exports = Base(Shipper);
 
+
+
 // 🔐 Tạo tài khoản shipper – chỉ admin dùng
 module.exports.createShipper = async (req, res) => {
   try {
@@ -115,7 +117,7 @@ module.exports.EditByAccountId = async (req, res) => {
     const shipper = await Shipper.findOne({ account_id });
 
     if (!shipper) {
-      return res.status(404).json({ message: 'Shipper not found' });
+return res.status(404).json({ message: 'Shipper not found' });
     }
 
     // Cập nhật các trường nếu có
@@ -194,4 +196,3 @@ module.exports.updateOnlineStatus = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
-

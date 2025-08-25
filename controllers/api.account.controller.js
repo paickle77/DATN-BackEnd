@@ -1,6 +1,7 @@
 const Account = require('../models/account.model');
 const bcrypt = require('bcryptjs');
 const { sendOTPEmail } = require('../utils/sendMail');
+const mongoose = require('mongoose');
 const Base = require('./base.controller');
 const accountController = Base(Account);
 
@@ -214,3 +215,119 @@ accountController.changePassword = async (req, res) => {
 };
 
 module.exports = accountController;
+// ================== Các API bổ sung từ file bên trái ==================
+
+// Lấy danh sách accounts cho web admin
+accountController.getList = async (req, res) => {
+  try {
+    const accounts = await Account.find()
+      .select('-password -otp -otpExpires')
+      .sort({ created_at: -1 });
+    res.json({
+      success: true,
+      data: accounts
+    });
+  } catch (err) {
+    console.error('❌ Lỗi lấy danh sách accounts:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách accounts'
+    });
+  }
+};
+
+// Khóa tài khoản (CHỈ CHO WEB ADMIN)
+accountController.lockAccount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = 'Admin lock account' } = req.body;
+    console.log('🔒 Khóa tài khoản ID:', id);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID tài khoản không hợp lệ'
+      });
+    }
+    const account = await Account.findByIdAndUpdate(
+      id,
+      { 
+        is_lock: true,
+        lock_reason: reason,
+        lock_date: new Date()
+      },
+      { new: true }
+    );
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tài khoản'
+      });
+    }
+    console.log('✅ Khóa tài khoản thành công:', account.email);
+    res.json({
+      success: true,
+      message: 'Khóa tài khoản thành công',
+      data: {
+        account_id: account._id,
+        email: account.email,
+        is_lock: account.is_lock,
+        reason,
+        lock_date: account.lock_date
+      }
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi khóa tài khoản:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi khóa tài khoản',
+      error: err.message
+    });
+  }
+};
+
+// Mở khóa tài khoản (CHỈ CHO WEB ADMIN)
+accountController.unlockAccount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🔓 Mở khóa tài khoản ID:', id);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID tài khoản không hợp lệ'
+      });
+    }
+    const account = await Account.findByIdAndUpdate(
+      id,
+      { 
+        is_lock: false,
+        unlock_date: new Date(),
+        lock_reason: null
+      },
+      { new: true }
+    );
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tài khoản'
+      });
+    }
+    console.log('✅ Mở khóa tài khoản thành công:', account.email);
+    res.json({
+      success: true,
+      message: 'Mở khóa tài khoản thành công',
+      data: {
+        account_id: account._id,
+        email: account.email,
+        is_lock: account.is_lock,
+        unlock_date: account.unlock_date
+      }
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi mở khóa tài khoản:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi mở khóa tài khoản',
+      error: err.message
+    });
+  }
+};
