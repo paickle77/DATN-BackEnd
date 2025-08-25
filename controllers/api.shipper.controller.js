@@ -63,7 +63,7 @@ module.exports.createShipper = async (req, res) => {
 };
 
 // ✅ Lấy danh sách shipper (gồm cả tài khoản liên kết)
-shipperController.getShippers = async (req, res) => {
+module.exports.getShippers = async (req, res) => {
   try {
     const shippers = await Shipper.find().populate(
       'account_id',
@@ -149,7 +149,7 @@ return res.status(404).json({ message: 'Shipper not found' });
   }
 };
 
-shipperController.getShipperByAccountId = async (req, res) => {
+module.exports.getShipperByAccountId = async (req, res) => {
   try {
     const { account_id } = req.params;
     
@@ -173,7 +173,7 @@ shipperController.getShipperByAccountId = async (req, res) => {
   }
 };
 
-shipperController.updateOnlineStatus = async (req, res) => {
+module.exports.updateOnlineStatus = async (req, res) => {
   try {
     const { _id, is_online } = req.body;
 

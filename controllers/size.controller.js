@@ -2,8 +2,8 @@ const Base = require('./base.controller');
 const sizes = require('../models/size.model');
 const Product = require('../models/product.model');
 
-// Export base methods nhưng override một số method
-module.exports = Base(sizes);
+// Get base methods
+const baseController = Base(sizes);
 
 // ✅ Override Add method với validation và stock update
 const Add = async (req, res) => {
@@ -30,7 +30,7 @@ const Add = async (req, res) => {
 };
 
 // ✅ Override Edit method
-module.exports.Edit = async (req, res) => {
+const Edit = async (req, res) => {
   try {
     const updated = await sizes.findByIdAndUpdate(
       req.params.id,
@@ -70,7 +70,7 @@ const Delete = async (req, res) => {
       await product.updateStockFromSizes();
     }
     
-    console.log('✅ Size deleted successfully:', sizeId);
+    console.log('✅ Size deleted successfully:', req.params.id);
     res.json({ msg: 'OK' });
     
   } catch (err) {
@@ -80,7 +80,7 @@ const Delete = async (req, res) => {
 };
 
 // ✅ Cập nhật method giảm số lượng - không cần branch_id
-module.exports.DecreaseQuantity = async (req, res) => {
+const DecreaseQuantity = async (req, res) => {
   try {
     const { sizeId, quantityToDecrease } = req.body;
 
@@ -146,4 +146,73 @@ module.exports.DecreaseQuantity = async (req, res) => {
       data: null 
     });
   }
+};
+
+// ✅ Get sizes by product
+const getSizesByProduct = async (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const sizeList = await sizes.find({ product_id: productId }).populate('product_id', 'name');
+    res.json({ msg: 'OK', data: sizeList });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// ✅ Bulk create sizes
+const bulkCreate = async (req, res) => {
+  try {
+    const sizesData = req.body.sizes || [];
+    const created = await sizes.insertMany(sizesData);
+    res.json({ msg: 'Bulk create successful', data: created });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// ✅ Bulk update sizes
+const bulkUpdate = async (req, res) => {
+  try {
+    const updates = req.body.updates || [];
+    const results = [];
+    
+    for (const update of updates) {
+      const updated = await sizes.findByIdAndUpdate(update.id, update.data, { new: true });
+      results.push(updated);
+    }
+    
+    res.json({ msg: 'Bulk update successful', data: results });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// ✅ Delete all sizes of a product
+const deleteByProduct = async (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const result = await sizes.deleteMany({ product_id: productId });
+    res.json({ msg: 'Sizes deleted successfully', data: result });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// Export all methods
+module.exports = {
+  // Base methods
+  getList: baseController.getList,
+  GetOne: baseController.GetOne,
+  
+  // Override methods
+  Add,
+  Edit,
+  Delete,
+  
+  // Additional methods
+  DecreaseQuantity,
+  getSizesByProduct,
+  bulkCreate,
+  bulkUpdate,
+  deleteByProduct
 };

@@ -1,7 +1,6 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Product = require('../models/product.model');
 const Category = require('../models/category.model');
-const Branch = require('../models/branch.model');
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);

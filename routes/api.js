@@ -14,8 +14,6 @@ const voucherCtrl = require('../controllers/api.voucher.controller');
 const paymentCtrl = require('../controllers/api.payment.controller');
 const reviewCtrl = require('../controllers/api.review.controller');
 const ratingCtrl = require('../controllers/api.rating.controller');
-const ingredientCtrl = require('../controllers/api.ingredient.controller');
-const branchCtrl = require('../controllers/api.branch.controller');
 const categoryCtrl = require('../controllers/api.category.controller');
 const productCtrl = require('../controllers/api.product.controller');
 const sizeCtrl = require('../controllers/size.controller');
@@ -28,6 +26,8 @@ const accountCtrl = require('../controllers/api.account.controller');
 const aiCtrl = require('../controllers/api.ai.controller');
 const messageCtrl = require('../controllers/api.message.controller');
 const vnpayRoutes = require('../vnpay/vnpay.routes');
+const supplierCtrl = require('../controllers/api.supplier.controller');
+
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
 router.post('/register', authCtrl.register);
@@ -83,10 +83,7 @@ router.get('/accounts', api_auth, requireRole('admin'), accountCtrl.getList);
 router.get('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.GetOne);
 
 router.get('/shippers/account/:account_id', shipperCtrl.getShipperByAccountId); // ✅ Sửa route path
-// ✅ SỬA: Thêm upload.single('image') cho POST shippers để admin web có thể upload ảnh
-router.post('/shippers', api_auth, upload.single('image'), shipperCtrl.Add);
 // 🆕 THÊM: Route tạo account + shipper mới
-router.post('/shippers/create-with-account', api_auth, requireRole('admin'), upload.single('image'), shipperCtrl.createAccountAndShipper);
 router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
 router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
 router.delete('/shippers/:id', api_auth, requireRole('admin'), shipperCtrl.Delete);
@@ -211,35 +208,6 @@ router.post('/voucher_users/mark-in-use', voucher_user.MarkVoucherInUse);
 // API cập nhật trạng thái voucher hết hạn tự động
 router.post('/voucher_users/update-expired', voucher_user.UpdateExpiredVouchers);
 
-
-
-
-
-
-// ——— CRUD cho Orders ———
-router.get   ('/orders',     orderCtrl.getList);
-// router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
-router.get   ('/orders/:id', orderCtrl.GetOne);
-router.post  ('/orders',     orderCtrl.Add);
-router.put   ('/orders/:id', orderCtrl.Edit);
-router.get('/orders', orderCtrl.getList);
-router.get('/orders/:id', orderCtrl.GetOne);
-router.post('/orders', orderCtrl.Add);
-router.put('/orders/:id', orderCtrl.Edit);
-// Orders
-router.get('/orders', orderCtrl.getList);
-router.get('/orders/:id', orderCtrl.GetOne);
-router.post('/orders', orderCtrl.Add);
-router.put('/orders/:id', orderCtrl.Edit);
-router.delete('/orders/:id', orderCtrl.Delete);
-
-// Order Details
-router.get('/orderDetails', orderDetailCtrl.getList);
-router.get('/orderDetails/:id', orderDetailCtrl.GetOne);
-router.post('/orderDetails', orderDetailCtrl.Add);
-router.put('/orderDetails/:id', orderDetailCtrl.Edit);
-router.delete('/orderDetails/:id', orderDetailCtrl.Delete);
-
 // Payments
 router.get('/payments', paymentCtrl.getList);
 router.get('/payments/:id', paymentCtrl.GetOne);
@@ -263,20 +231,6 @@ router.get('/debug-bill/:billId', reviewCtrl.debugBillDetails);
 // ——— Rating APIs (Optimized) ———
 router.post('/batch-ratings', ratingCtrl.getBatchRatings);
 router.get('/product-rating/:productId', ratingCtrl.getProductRating);
-
-// Ingredients — chỉ cho admin
-router.get('/ingredients', requireRole('admin'), ingredientCtrl.getList);
-router.get('/ingredients/:id', requireRole('admin'), ingredientCtrl.GetOne);
-router.post('/ingredients', requireRole('admin'), ingredientCtrl.Add);
-router.put('/ingredients/:id', requireRole('admin'), ingredientCtrl.Edit);
-router.delete('/ingredients/:id', requireRole('admin'), ingredientCtrl.Delete);
-
-// Branches — chỉ cho admin
-router.get('/branches', requireRole('admin'), branchCtrl.getList);
-router.get('/branches/:id', requireRole('admin'), branchCtrl.GetOne);
-router.post('/branches', requireRole('admin'), branchCtrl.Add);
-router.put('/branches/:id', requireRole('admin'), branchCtrl.Edit);
-router.delete('/branches/:id', requireRole('admin'), branchCtrl.Delete);
 
 // Categories — chỉ cho admin
 router.get('/categories', categoryCtrl.getList);
