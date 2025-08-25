@@ -1,8 +1,9 @@
 const mongoose = require('./db');
+const Schema = mongoose.Schema;
 
-const FavoriteSchema = new mongoose.Schema({
-  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  product_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true }
+const FavoriteSchema = new Schema({
+  Account_id: { type: Schema.Types.ObjectId, ref: 'Account', required: true },
+  product_id: { type: Schema.Types.ObjectId, ref: 'Product', required: true }
 }, {
   collection: 'favorites'  // Đây là options, không phải field!
 });

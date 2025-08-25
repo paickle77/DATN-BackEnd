@@ -5,8 +5,156 @@ const User = require('../models/user.model');
 
 const controller = Base(Notification);
 
-// 🔄 GIỮ NGUYÊN HOÀN TOÀN endpoint cũ cho mobile app
-// GET /notifications - Mobile app sử dụng (tương thích với req.account)
+// POST /notifications - Tạo thông báo mới
+controller.Add = async (req, res) => {
+  try {
+    const { user_id, title, content, icon = 'notifications' } = req.body;
+
+    if (!user_id || !content) {
+      return res.status(400).json({ msg: 'user_id và content là bắt buộc', data: null });
+    }
+
+    const notification = await Notification.create({
+      user_id,
+      title: title || 'Thông báo mới',
+      content,
+      icon
+    });
+
+    res.status(201).json({ msg: 'Tạo thông báo thành công', data: notification });
+  } catch (err) {
+    console.error('Error in Add notification:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+
+// GET /notifications/user/:userId - Lấy thông báo của user
+controller.getListByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log('Getting notifications for userId:', userId);
+
+    const notifications = await Notification.find({ user_id: userId })
+      .sort({ created_at: -1 })
+      .limit(50);
+
+    console.log(`Found ${notifications.length} notifications for user ${userId}`);
+    res.json({ msg: 'OK', data: notifications });
+  } catch (err) {
+    console.error('Error in getListByUser:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+
+// GET /notifications/unread-count/:userId - Đếm số thông báo chưa đọc
+controller.getUnreadCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log('Getting unread count for userId:', userId);
+    
+    const count = await Notification.countDocuments({ 
+      user_id: userId, 
+      is_read: false 
+    });
+    
+    console.log(`Found ${count} unread notifications for user ${userId}`);
+    res.json({ msg: 'OK', data: { count } });
+  } catch (err) {
+    console.error('Error in getUnreadCount:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+
+// PUT /notifications/:id/mark-read - Đánh dấu đã đọc
+controller.markAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Marking notification as read:', id);
+    
+    const notification = await Notification.findByIdAndUpdate(
+      id,
+      { is_read: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ msg: 'Không tìm thấy thông báo', data: null });
+    }
+
+    res.json({ msg: 'Đã đánh dấu đã đọc', data: notification });
+  } catch (err) {
+    console.error('Error in markAsRead:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+
+// PUT /notifications/mark-all-read/:userId - Đánh dấu tất cả đã đọc
+controller.markAllAsRead = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log('Marking all notifications as read for userId:', userId);
+    
+    const result = await Notification.updateMany(
+      { user_id: userId, is_read: false },
+      { is_read: true }
+    );
+
+    console.log(`Successfully marked ${result.modifiedCount} notifications as read`);
+    res.json({ msg: 'Đã đánh dấu tất cả đã đọc', data: result });
+  } catch (err) {
+    console.error('Error in markAllAsRead:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+
+// DELETE /notifications/:id - Xóa thông báo (chỉ được xóa khi đã đọc)
+controller.deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Deleting notification:', id);
+    
+    const notification = await Notification.findById(id);
+    
+    if (!notification) {
+      return res.status(404).json({ msg: 'Không tìm thấy thông báo', data: null });
+    }
+    
+    if (!notification.is_read) {
+      return res.status(400).json({ msg: 'Chỉ có thể xóa thông báo đã đọc', data: null });
+    }
+    
+    await Notification.findByIdAndDelete(id);
+    console.log('Successfully deleted notification:', id);
+    
+    res.json({ msg: 'Đã xóa thông báo', data: { id } });
+  } catch (err) {
+    console.error('Error in deleteNotification:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+
+// DELETE /notifications/delete-all-read/:userId - Xóa tất cả thông báo đã đọc
+controller.deleteAllRead = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log('Deleting all read notifications for userId:', userId);
+    
+    const result = await Notification.deleteMany({
+      user_id: userId,
+      is_read: true
+    });
+    
+    console.log(`Successfully deleted ${result.deletedCount} read notifications`);
+    res.json({ 
+      msg: `Đã xóa ${result.deletedCount} thông báo đã đọc`, 
+      data: { deletedCount: result.deletedCount } 
+    });
+  } catch (err) {
+    console.error('Error in deleteAllRead:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+
 controller.getList = async (req, res) => {
   try {
     // Xử lý cả req.user (mới) và req.account (cũ) để tương thích
@@ -45,139 +193,6 @@ controller.getList = async (req, res) => {
   }
 };
 
-// 🔄 GIỮ NGUYÊN HOÀN TOÀN hàm này cho mobile app
-controller.getListByUser = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = req.user || req.account; // Tương thích cả 2
-
-    if (!user) {
-      return res.status(401).json({ 
-        msg: 'Cần đăng nhập', 
-        data: null 
-      });
-    }
-
-    const currentUserId = user.id || user._id?.toString();
-    const userRole = user.role || 'user';
-
-    // Cho phép user xem thông báo của chính mình, hoặc admin xem tất cả
-    if (currentUserId !== userId && userRole !== 'admin') {
-      return res.status(403).json({ 
-        msg: 'Không có quyền truy cập', 
-        data: null 
-      });
-    }
-
-    const userExists = await User.findById(userId);
-    if (!userExists) {
-      return res.status(404).json({ 
-        msg: 'Người dùng không tồn tại', 
-        data: null 
-      });
-    }
-
-    // 🔥 GIỮ NGUYÊN LOGIC CŨ - Lấy thông báo global + personal
-    const notes = await Notification.find({
-      $or: [
-        { type: 'global' },
-        { type: 'personal', user_id: userId }
-      ]
-    }).sort({ created_at: -1 });
-
-    res.json({ msg: 'OK', data: notes });
-  } catch (err) {
-    console.error('getListByUser error:', err);
-    res.status(400).json({ msg: err.message, data: null });
-  }
-};
-
-// 🔄 GIỮ NGUYÊN với cải tiến tương thích
-controller.Add = async (req, res) => {
-  try {
-    const { user_id, content, type = 'personal' } = req.body;
-    const user = req.user || req.account; // Tương thích cả 2
-
-    // Validate input
-    if (!content || content.trim().length === 0) {
-      return res.status(400).json({ 
-        msg: 'Nội dung thông báo không được để trống', 
-        data: null 
-      });
-    }
-
-    if (content.length > 500) {
-      return res.status(400).json({ 
-        msg: 'Nội dung thông báo không được quá 500 ký tự', 
-        data: null 
-      });
-    }
-
-    // Nếu là thông báo cá nhân, phải có user_id
-    if (type === 'personal' && !user_id) {
-      return res.status(400).json({ 
-        msg: 'Thông báo cá nhân phải chỉ định người nhận', 
-        data: null 
-      });
-    }
-
-    // Kiểm tra user tồn tại (nếu có user_id)
-    if (user_id) {
-      const userExists = await User.findById(user_id);
-      if (!userExists) {
-        return res.status(400).json({ 
-          msg: 'Người dùng không tồn tại', 
-          data: null 
-        });
-      }
-      
-      if (userExists.is_lock) {
-        return res.status(400).json({ 
-          msg: 'Không thể gửi thông báo đến tài khoản đã bị khóa', 
-          data: null 
-        });
-      }
-    }
-
-    // 🔥 GIỮ NGUYÊN LOGIC CŨ - Auto generate title
-    const title = content.length > 50 
-      ? content.slice(0, 50) + '…' 
-      : content;
-
-    const notificationData = {
-      content: content.trim(),
-      title,
-      type
-    };
-
-    if (type === 'personal' && user_id) {
-      notificationData.user_id = user_id;
-    }
-
-    // Chỉ set created_by nếu có user (để tương thích với mobile app cũ)
-    if (user) {
-      notificationData.created_by = user.id || user._id;
-    }
-
-    const note = await Notification.create(notificationData);
-    
-    // Populate để trả về đầy đủ info
-    await note.populate('user_id', 'name email');
-    if (note.created_by) {
-      await note.populate('created_by', 'name email');
-    }
-
-    res.status(201).json({ 
-      msg: 'Gửi thông báo thành công', 
-      data: note 
-    });
-  } catch (err) {
-    console.error('Add notification error:', err);
-    res.status(400).json({ msg: err.message, data: null });
-  }
-};
-
-// 🆕 ENDPOINT MỚI CHỈ CHO WEB ADMIN - Lấy tất cả thông báo
 controller.getListForAdmin = async (req, res) => {
   try {
     const user = req.user || req.account;
@@ -335,35 +350,6 @@ controller.Edit = async (req, res) => {
   }
 };
 
-// 🔄 Cải thiện Delete
-controller.Delete = async (req, res) => {
-  try {
-    const user = req.user || req.account;
-    
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ 
-        msg: 'Không có quyền xóa thông báo', 
-        data: null 
-      });
-    }
-
-    const deleted = await Notification.findByIdAndDelete(req.params.id);
-    
-    if (!deleted) {
-      return res.status(404).json({ 
-        msg: 'Không tìm thấy thông báo', 
-        data: null 
-      });
-    }
-
-    res.json({ msg: 'Xóa thông báo thành công' });
-  } catch (err) {
-    console.error('Delete notification error:', err);
-    res.status(400).json({ msg: err.message });
-  }
-};
-
-// 🆕 Thống kê - CHỈ CHO WEB ADMIN
 controller.getStats = async (req, res) => {
   try {
     const user = req.user || req.account;
@@ -434,38 +420,5 @@ controller.markReadBulk = async (req, res) => {
   }
 };
 
-controller.deleteBulk = async (req, res) => {
-  try {
-    const user = req.user || req.account;
-    
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ 
-        msg: 'Không có quyền xóa thông báo', 
-        data: null 
-      });
-    }
-
-    const { notification_ids } = req.body;
-
-    if (!Array.isArray(notification_ids) || notification_ids.length === 0) {
-      return res.status(400).json({ 
-        msg: 'Danh sách ID thông báo không hợp lệ', 
-        data: null 
-      });
-    }
-
-    const result = await Notification.deleteMany(
-      { _id: { $in: notification_ids } }
-    );
-
-    res.json({ 
-      msg: `Đã xóa ${result.deletedCount} thông báo`,
-      data: { deleted_count: result.deletedCount }
-    });
-  } catch (err) {
-    console.error('deleteBulk error:', err);
-    res.status(400).json({ msg: err.message, data: null });
-  }
-};
 
 module.exports = controller;

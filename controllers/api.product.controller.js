@@ -1,6 +1,7 @@
 const Base = require('./base.controller');
 const Product = require('../models/product.model');
 const Size = require('../models/size.model');
+require('../models/supplier.model');
 
 // ✅ Export base methods với proper error handling
 const baseController = Base(Product);

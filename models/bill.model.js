@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const billSchema = new Schema({
-  user_id: { type: Schema.Types.ObjectId, ref: 'User', required: true }, // 🔥 THÊM ref: 'User'
+  Account_id: { type: Schema.Types.ObjectId, ref: 'Account', required: true },
   address_id: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
   shipper_id: { type: Schema.Types.ObjectId, ref: 'Shipper', default: null },
   note: { type: String, default: '' },
@@ -12,17 +12,30 @@ const billSchema = new Schema({
   original_total: { type: Number, required: true }, // Tổng tiền trước giảm giá
   discount_amount: { type: Number, default: 0 }, // Số tiền giảm giá
   voucher_code: { type: String, default: '' }, // Mã voucher đã sử dụng
-  status: { 
-    type: String, 
-    enum: ['pending','confirmed', 'ready', 'shipping', 'done', 'cancelled','failed'],
+  voucher_user_id: { type: Schema.Types.ObjectId, ref: "Voucher_User", default: null }, // Tham chiếu voucher_user
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'ready', 'shipping', 'done', 'cancelled', 'failed', 'refund_pending', 'refunded'],
     default: 'pending',
-    required: true 
+    required: true
+  },
+  shipping_fee: { type: Number, default: 0 },
+  address_snapshot: {
+    name: String,
+    phone: String,
+    detail: String,
+    ward: String,
+    district: String,
+    city: String
   },
   created_at: { type: Date, default: Date.now },
   payment_confirmed_at: { type: Date }, // Thời gian xác nhận thanh toán
   delivered_at: { type: Date }, // Thời gian giao hàng thành công
-  cancelled_at: { type: Date }, // 🔥 THÊM: Thời gian hủy đơn
-  proof_images: { type: [String], default: [] },
+  proof_images: { type: String, default: '' }, // Hình ảnh chứng minh giao hàng (nếu có)
+  refund_requested_at: { type: Date }, // Thời gian yêu cầu hoàn tiền
+  refund_processed_at: { type: Date }, // Thời gian xử lý hoàn tiền
+  refund_amount: { type: Number, default: 0 }, // Số tiền hoàn
+  refund_reason: { type: String, default: '' }, // Lý do hoàn tiền
 }, { timestamps: true });
 
 // Index để tìm kiếm nhanh hơn

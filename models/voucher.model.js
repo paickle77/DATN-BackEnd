@@ -1,35 +1,24 @@
-// models/voucher.model.js (hoặc đúng path bạn đang dùng)
 const mongoose = require('./db');
 
 const VoucherSchema = new mongoose.Schema({
-  code: { type: String, required: true, unique: true, trim: true, uppercase: true },
-  description: { type: String, default: '' },
+  code: { type: String, required: true, unique: true }, // Mã giảm giá
+  description: { type: String }, // Mô tả voucher
+  discount_percent: { type: Number, min: 0, max: 100 }, // Giảm % (ưu tiên)
+  discount_amount: { type: Number, min: 0 }, // Giảm trực tiếp số tiền (tùy chọn)
 
-  // % giảm giá hoặc bạn có thể mở rộng thêm kiểu tiền mặt sau này
-  discount_percent: { type: Number, min: 0, max: 100, default: 0 },
+  start_date: { type: Date, default: null }, // Ngày bắt đầu (null = áp dụng ngay)
+  end_date: { type: Date, default: null },   // Ngày kết thúc (null = vô hạn)
 
-  // Khoảng thời gian hiệu lực của voucher
-  start_date: { type: Date, required: true },
-  end_date:   { type: Date, required: true },
+  quantity: { type: Number, default: 0 },    // Tổng số lượng phát hành (0 = vô hạn)
+  used_count: { type: Number, default: 0 },  // Số lượt đã dùng
 
-  // Tổng số lượt dùng trên toàn hệ thống (0 = không giới hạn)
-  quantity:   { type: Number, default: 0, min: 0 },
+  max_usage_per_user: { type: Number, default: 0 }, // Giới hạn mỗi user dùng (0 = vô hạn)
 
-  // Đã dùng bao nhiêu lượt (tăng khi user apply thành công)
-  used_count: { type: Number, default: 0, min: 0 },
-
-  // Số lần TỐI ĐA mà MỖI USER được dùng mã này (0 = không giới hạn)
-  max_usage_per_user: { type: Number, default: 1, min: 0 },
-
-  // Bật/tắt mã (tắt: không cho apply)
-  status: { type: String, enum: ['active', 'inactive'], default: 'active' }
+  min_order_value: { type: Number, default: 0 }, //  Tổng đơn hàng tối thiểu
+  status: { type: String, enum: ["active", "inactive"], default: "active" },
+  // active = hiển thị, inactive = admin tắt
 }, {
-  collection: 'vouchers',
-  timestamps: true
+  collection: 'vouchers'
 });
-
-// Index hữu ích
-VoucherSchema.index({ code: 1 });
-VoucherSchema.index({ status: 1, start_date: 1, end_date: 1 });
 
 module.exports = mongoose.model('Voucher', VoucherSchema);

@@ -14,8 +14,11 @@ const UserSchema = new mongoose.Schema({
   image:      { type: String }, // Mobile app có thể vẫn dùng field này
   
   address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },
-  
-  // ✅ THÊM: Các field hữu ích cho admin
+  // ✅ THÊM: Các field cần thiết cho web admin (không bắt buộc để mobile app vẫn hoạt động)
+  gender:     { type: String, enum: ['nam', 'nữ', 'khác'], default: null },
+  birth_date: { type: Date, default: null },
+  avatar:     { type: String, default: 'avatarmacdinh.png' },
+  // ✅ THÊM: Các field cần thiết cho web admin (không bắt buộc để mobile app vẫn hoạt động)
   role:       { type: String, enum: ['user', 'customer'], default: 'user' },
   is_verified: { type: Boolean, default: false },
   last_login: { type: Date, default: null }

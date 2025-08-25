@@ -5,8 +5,18 @@ const NotificationSchema = new mongoose.Schema({
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    required: true
+  },
+  content: {
+    type: String,
     required: true,
-    index: true // Tối ưu query
+    maxlength: 500,
+    trim: true
+  },
+  title: {
+    type: String,
+    required: true,
+    default: 'Thông báo mới'
   },
   content: {
     type: String,
@@ -25,6 +35,10 @@ const NotificationSchema = new mongoose.Schema({
     default: false,
     index: true // Tối ưu query filter
   },
+  icon: {
+    type: String,
+    default: 'notifications'
+  },
   type: {
     type: String,
     enum: ['global', 'personal'],
@@ -40,13 +54,9 @@ const NotificationSchema = new mongoose.Schema({
   }
 }, {
   collection: 'notifications',
-  timestamps: { 
-    createdAt: 'created_at', 
-    updatedAt: false // Giữ nguyên như code cũ
-  }
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-// 🔥 Compound index để tối ưu query phổ biến
 NotificationSchema.index({ user_id: 1, created_at: -1 });
 NotificationSchema.index({ user_id: 1, is_read: 1 });
 NotificationSchema.index({ type: 1, created_at: -1 });

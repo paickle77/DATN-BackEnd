@@ -1,6 +1,5 @@
 const Message = require("../models/message.model");
 const Conversation = require("../models/conversation.model");
-const mongoose = require("../models/db"); // ✅ thêm ngay dưới các require model
 
 const ADMIN_ID = "685e2fea79bd687050637953"; // ID admin cố định
 
@@ -33,11 +32,11 @@ exports.sendMessage = async (req, res) => {
       convo = new Conversation({
         user: userId,
         admin: ADMIN_ID,
-        lastMessage: lastMessageContent,        // ✅ dùng biến đã chuẩn hoá
+        lastMessage: lastMessageContent,
         updatedAt: new Date()
       });
     } else {
-      convo.lastMessage = lastMessageContent;    // ✅ dùng biến đã chuẩn hoá
+      convo.lastMessage = lastMessageContent;
       convo.updatedAt = new Date();
     }
     await convo.save();
@@ -48,6 +47,7 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
+// Lấy danh sách user đã nhắn tới admin (panel trái)
 exports.getConversations = async (req, res) => {
   try {
     const ADMIN_ID = "685e2fea79bd687050637953";
@@ -120,6 +120,7 @@ exports.getConversations = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 // Lấy toàn bộ tin nhắn giữa admin và 1 user (panel phải)

@@ -5,10 +5,11 @@ const ShipperSchema = new mongoose.Schema({
   full_name:      { type: String, required: true },
   phone:          { type: String, required: true },
   image:         { type: String, default: '' },
-  license_number: { type: String, default: '' },
-  vehicle_type:   { type: String, default: '' },
-  // ✅ Sửa is_online để hỗ trợ cả boolean và string, với pre-save middleware
-  is_online:      { type: mongoose.Schema.Types.Mixed, default: false },
+  license_number: { type: String },
+  vehicle_type:   { type: String },
+  is_online:      {  type: String,
+    enum: ['offline', 'online', 'busy'],
+    default: 'offline' },
 }, {
   collection: 'shippers',
   timestamps: true

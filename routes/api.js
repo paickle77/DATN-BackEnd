@@ -13,7 +13,9 @@ const logCtrl = require('../controllers/api.log.controller');
 const voucherCtrl = require('../controllers/api.voucher.controller');
 const paymentCtrl = require('../controllers/api.payment.controller');
 const reviewCtrl = require('../controllers/api.review.controller');
-const supplierCtrl = require('../controllers/api.supplier.controller');
+const ratingCtrl = require('../controllers/api.rating.controller');
+const ingredientCtrl = require('../controllers/api.ingredient.controller');
+const branchCtrl = require('../controllers/api.branch.controller');
 const categoryCtrl = require('../controllers/api.category.controller');
 const productCtrl = require('../controllers/api.product.controller');
 const sizeCtrl = require('../controllers/size.controller');
@@ -21,11 +23,11 @@ const authCtrl = require('../controllers/api.auth.controller');
 const billCtrl = require('../controllers/api.bill.controller');
 const billdetails = require('../controllers/api.billdetails.controller');
 const voucher_user = require('../controllers/api.voucher_user.controller');
-const shipperCtrl = require('../controllers/api.shipper.controller');
+const shipperCtrl        = require('../controllers/api.shipper.controller');
 const accountCtrl = require('../controllers/api.account.controller');
-const voucherUserAdminCtrl = require('../controllers/api.voucherUserAdmin.controller');
+const aiCtrl = require('../controllers/api.ai.controller');
 const messageCtrl = require('../controllers/api.message.controller');
-
+const vnpayRoutes = require('../vnpay/vnpay.routes');
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
 router.post('/register', authCtrl.register);
@@ -35,16 +37,29 @@ router.post('/send-otp', accountCtrl.sendOTP);             // Gửi OTP reset pa
 router.post('/verify-otp', accountCtrl.verifyOTP);         // Xác thực OTP (optional)
 router.post('/reset-password', accountCtrl.resetPassword); // Reset password với OTP
 router.post('/change-password', accountCtrl.changePassword); // Đổi password khi đã login
-
+router.get ('/account/:id',    accountCtrl.GetOne);
 // 2️⃣ Bảo vệ tất cả route còn lại bằng api_auth (xác thực token)
 // Uncomment dòng dưới nếu muốn bảo vệ tất cả routes
 // router.use(api_auth);
 
-// ——— CRUD cho User ———
-// ✅ ĐẶT CÁC ROUTE CỤ THỂ TRƯỚC CÁC ROUTE DYNAMIC
-router.get('/users/with-accounts', userCtrl.getCustomersWithDetails); // Lấy khách hàng với thông tin đầy đủ
-router.get('/users/stats', userCtrl.getCustomerStats); // Thống kê khách hàng
 
+// ——— CRUD cho Shipper ———
+router.get   ('/shippers',        shipperCtrl.getList);
+router.get   ('/shippers/:id',    shipperCtrl.GetOne);
+router.get('/shippers/:account_id', shipperCtrl.getShipperByAccountId);
+router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
+router.put('/shippers/:id', shipperCtrl.Edit);
+router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
+router.delete('/shippers/:id',    shipperCtrl.Delete);
+
+// ——— CRUD cho Message ———
+// routes/message.route.js
+router.get('/messages/conversations', messageCtrl.getConversations);
+router.get("/messages/:userId", messageCtrl.getMessages);
+router.post('/messages', messageCtrl.sendMessage); 
+
+
+// ——— CRUD cho User ———router.get('/users/:id', userCtrl.GetOne);
 router.get('/users', userCtrl.getList);
 router.get('/users/account/:account_id', userCtrl.getByAccountId); // ✅ Lấy user bằng account_id
 router.get('/users/:id', userCtrl.GetOne); // ✅ Lấy user bằng user_id
@@ -52,15 +67,12 @@ router.post('/users/profile', userCtrl.createUserProfile); // ✅ Tạo profile 
 router.put('/users/:id', userCtrl.Edit);
 router.delete('/users/:id', userCtrl.Delete);
 
-// ✅ Route khóa/mở khóa account CHỈ CHO WEB ADMIN
-router.put('/accounts/:id/lock', accountCtrl.lockAccount); // Khóa tài khoản
-router.put('/accounts/:id/unlock', accountCtrl.unlockAccount); // Mở khóa tài khoản
-router.put('/users/:userId/toggle-lock', userCtrl.toggleCustomerLock); // Khóa/mở khóa tài khoản
+// ——— AI Chat Routes ———
+router.post('/ai/chat', aiCtrl.chat);
+router.get('/ai/suggestions', aiCtrl.getQuickSuggestions);
+router.get('/ai/product/:product_id', aiCtrl.getProductInfo);
 
-// ——— CRUD cho Shipper ———
-router.get('/shippers', shipperCtrl.getList);
-router.get('/shippers/:id', shipperCtrl.GetOne);
-router.get('/shippers/:account_id', shipperCtrl.getShipperByAccountId);
+// --- CRUD cho Shippers
 router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
 router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
 router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
@@ -86,19 +98,24 @@ router.put('/accounts/:id/unlock', api_auth, requireRole('admin'), accountCtrl.u
 router.delete('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.Delete); // Xóa account
 
 // ——— CRUD cho bill ———
-router.get('/bills', billCtrl.getList);
-router.get('/GetAllBills', billCtrl.GetAllBills);
-router.get('/bills/:id', billCtrl.GetOne);
-router.post('/bills', billCtrl.Add);
-router.put('/bills/:id', billCtrl.Edit);
-router.put('/bills/:id/assign-shipper', billCtrl.AssignShipper);
-router.post('/bills/StartShipping', billCtrl.StartShipping); // 🔥 THÊM route mới
-router.post('/bills/CompleteOrder', billCtrl.CompleteOrder);
-router.post('/bills/CancelOrder', billCtrl.CancelOrder);
-router.delete('/bills/:id', billCtrl.Delete);
+router.get   ('/bills',        billCtrl.getList);
+router.get   ('/GetAllBills',  billCtrl.GetAllBills); // tên viết hoa có thể đổi thành /bills/all cho chuẩn REST
+router.get   ('/bills/:id',    billCtrl.GetOne);
+router.post  ('/bills',        billCtrl.Add);
+router.put   ('/bills/:id',    billCtrl.Edit);
+router.delete('/bills/:id',    billCtrl.Delete);
+router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
+router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
+router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
+router.post  ('/bills/cancel-by-customer', billCtrl.CancelOrderByCustomer); // ✅ Khách hàng hủy đơn
+router.post  ('/bills/process-refund',     billCtrl.ProcessRefund); // ✅ Admin xử lý hoàn tiền
+router.post  ('/bills/CreatePending',      billCtrl.CreatePendingBill); // COD only
+router.post  ('/bills/CreateAfterPayment', billCtrl.CreateBillAfterPayment); // ✅ Sau thanh toán online
+
 
 // ——— CRUD cho Bill Details ———
 router.get('/billdetails', billdetails.getList);
+router.get('/billdetails/by-bill/:bill_id', billdetails.GetBillDetailsByBillId);
 router.get('/GetAllBillDetails', billdetails.GetAllBillDetail);
 router.get('/billdetails/:id', billdetails.GetOne);
 router.post('/billdetails', billdetails.Add);
@@ -141,24 +158,31 @@ router.get('/carts/:id', cartCtrl.GetOne);
 router.post('/addtocarts', cartCtrl.Add);
 router.put('/carts/:id', cartCtrl.Edit);
 router.delete('/carts/:id', cartCtrl.Delete);
-router.delete('/carts/user/:user_id', cartCtrl.DeleteCartByUser); // API xóa toàn bộ giỏ hàng theo user_id
+// API xóa toàn bộ giỏ hàng theo user_id
+router.delete('/carts/account/:accountId', cartCtrl.DeleteCartByAccount);
+// Thêm API lấy giỏ hàng theo user hiện tại
+router.get('/GetCartByAccount/:accountId', cartCtrl.GetCartByAccount);
 
 // ——— CRUD cho Favorites ———
 router.get('/favorites', favoriteCtrl.getList);
+router.get('/favorites/account/:accountId', favoriteCtrl.GetFavoriteandNameProduct);
 router.get('/favorites2', favoriteCtrl.GetFavoriteandNameProduct2);
 router.get('/favorites/:id', favoriteCtrl.GetOne);
 router.post('/favorites', favoriteCtrl.Add);
 router.put('/favorites/:id', favoriteCtrl.Edit);
 router.delete('/favorites/:id', favoriteCtrl.Delete);
 
-// ——— NOTIFICATIONS - 100% Backward Compatible với Mobile ———
-
-// 🆕 ENDPOINTS MỚI CHỈ CHO WEB ADMIN (đặt TRƯỚC để không bị conflict)
-router.get('/notifications/admin/all', api_auth, requireRole('admin'), notificationCtrl.getListForAdmin);
-router.get('/notifications/admin/stats', api_auth, requireRole('admin'), notificationCtrl.getStats);
-router.post('/notifications/admin/broadcast', api_auth, requireRole('admin'), notificationCtrl.broadcast);
-router.put('/notifications/admin/bulk/mark-read', api_auth, requireRole('admin'), notificationCtrl.markReadBulk);
-router.delete('/notifications/admin/bulk/delete', api_auth, requireRole('admin'), notificationCtrl.deleteBulk);
+// Notifications - Sắp xếp routes cụ thể trước
+router.get('/notifications', notificationCtrl.getList);
+router.get('/notifications/user/:userId', notificationCtrl.getListByUser);
+router.get('/notifications/unread-count/:userId', notificationCtrl.getUnreadCount);
+router.put('/notifications/mark-all-read/:userId', notificationCtrl.markAllAsRead);
+router.delete('/notifications/delete-all-read/:userId', notificationCtrl.deleteAllRead);
+router.get('/notifications/:id', notificationCtrl.GetOne);
+router.post('/notifications', notificationCtrl.Add);
+router.put('/notifications/:id/mark-read', notificationCtrl.markAsRead);
+router.put('/notifications/:id', notificationCtrl.Edit);
+router.delete('/notifications/:id', notificationCtrl.deleteNotification);
 
 // 🔄 GIỮ NGUYÊN 100% endpoints cũ cho mobile app
 router.get('/notifications/user/:userId', api_auth, notificationCtrl.getListByUser); // ✅ Mobile app endpoint
@@ -168,29 +192,55 @@ router.post('/notifications', notificationCtrl.Add); // ✅ Mobile compatible (n
 router.put('/notifications/:id', api_auth, notificationCtrl.Edit); // ✅ Mobile + Web
 router.delete('/notifications/:id', api_auth, notificationCtrl.Delete); // ✅ Web admin only
 
-// ——— CRUD cho Vouchers ———
-// (dùng đúng tên hàm trong controllers/api.voucher.controller.js)
-router.get('/vouchers', voucherCtrl.list);
-router.post('/vouchers', api_auth, requireRole('admin'), voucherCtrl.create);
-router.put('/vouchers/:id', api_auth, requireRole('admin'), voucherCtrl.update);
-router.delete('/vouchers/:id', api_auth, requireRole('admin'), voucherCtrl.remove);
-
-// user apply voucher
-router.post('/vouchers/apply', voucherCtrl.apply);
-
-// ——— VOUCHER USERS (phía user) ———
-// (dùng đúng tên hàm trong controllers/api.voucher_user.controller.js)
-router.get('/voucher_users/my', voucher_user.myList);
-router.post('/voucher_users/save', voucher_user.saveVoucher);
-
-// ——— VOUCHER USERS (phía admin) ———
-// (dùng đúng tên hàm trong controllers/api.voucherUserAdmin.controller.js)
-router.get('/admin/voucher_users', api_auth, requireRole('admin'), voucherUserAdminCtrl.adminList);
-router.put('/admin/voucher_users/:id', api_auth, requireRole('admin'), voucherUserAdminCtrl.updateStatus);
-router.delete('/admin/voucher_users/:id', api_auth, requireRole('admin'), voucherUserAdminCtrl.remove);
+// Voucher Users
+router.get('/getallvoucher_users', voucher_user.GetAllVoucher_user);
+router.get('/voucher_users', voucher_user.getList); 
+router.get('/voucher_users/:id', voucher_user.GetOne); 
+router.post('/voucher_users', voucher_user.Add); 
+router.put('/voucher_users/:id', voucher_user.Edit); 
+router.delete('/voucher_users/:id', voucher_user.Delete); 
+router.get('/voucher_users/account/:accountId', voucher_user.GetVoucherUserByAccountId);
+// API lưu voucher với kiểm tra trùng lặp
+router.post('/voucher_users/save', voucher_user.SaveVoucherToUser);
+// API sử dụng voucher với logic kiểm tra đầy đủ
+router.post('/voucher_users/use', voucher_user.UseVoucher);
+// API đánh dấu voucher đang sử dụng (available -> in_use)
+router.post('/voucher_users/mark-in-use', voucher_user.MarkVoucherInUse);
+// ❌ API đánh dấu voucher đã sử dụng - KHÔNG CẦN THIẾT NỮA (chỉ có 2 status)
+// router.post('/voucher_users/mark-used', voucher_user.MarkVoucherAsUsed);
+// API cập nhật trạng thái voucher hết hạn tự động
+router.post('/voucher_users/update-expired', voucher_user.UpdateExpiredVouchers);
 
 
-// ——— CRUD cho Payments ———
+
+
+
+
+// ——— CRUD cho Orders ———
+router.get   ('/orders',     orderCtrl.getList);
+// router.get   ('/GetAllOrders', orderCtrl.GetAllOrder);
+router.get   ('/orders/:id', orderCtrl.GetOne);
+router.post  ('/orders',     orderCtrl.Add);
+router.put   ('/orders/:id', orderCtrl.Edit);
+router.get('/orders', orderCtrl.getList);
+router.get('/orders/:id', orderCtrl.GetOne);
+router.post('/orders', orderCtrl.Add);
+router.put('/orders/:id', orderCtrl.Edit);
+// Orders
+router.get('/orders', orderCtrl.getList);
+router.get('/orders/:id', orderCtrl.GetOne);
+router.post('/orders', orderCtrl.Add);
+router.put('/orders/:id', orderCtrl.Edit);
+router.delete('/orders/:id', orderCtrl.Delete);
+
+// Order Details
+router.get('/orderDetails', orderDetailCtrl.getList);
+router.get('/orderDetails/:id', orderDetailCtrl.GetOne);
+router.post('/orderDetails', orderDetailCtrl.Add);
+router.put('/orderDetails/:id', orderDetailCtrl.Edit);
+router.delete('/orderDetails/:id', orderDetailCtrl.Delete);
+
+// Payments
 router.get('/payments', paymentCtrl.getList);
 router.get('/payments/:id', paymentCtrl.GetOne);
 router.post('/payments', paymentCtrl.Add);
@@ -205,7 +255,30 @@ router.post('/reviews', reviewCtrl.Add);
 router.put('/reviews/:id', reviewCtrl.Edit);
 router.delete('/reviews/:id', reviewCtrl.Delete);
 
-// ——— CRUD cho Categories ———
+// ——— Review Status APIs ———
+router.get('/bill-review-status/:billId/:accountId', reviewCtrl.checkBillReviewStatus);
+router.get('/product-review-status/:billId/:productId/:accountId', reviewCtrl.checkProductReviewInBill);
+router.get('/debug-bill/:billId', reviewCtrl.debugBillDetails);
+
+// ——— Rating APIs (Optimized) ———
+router.post('/batch-ratings', ratingCtrl.getBatchRatings);
+router.get('/product-rating/:productId', ratingCtrl.getProductRating);
+
+// Ingredients — chỉ cho admin
+router.get('/ingredients', requireRole('admin'), ingredientCtrl.getList);
+router.get('/ingredients/:id', requireRole('admin'), ingredientCtrl.GetOne);
+router.post('/ingredients', requireRole('admin'), ingredientCtrl.Add);
+router.put('/ingredients/:id', requireRole('admin'), ingredientCtrl.Edit);
+router.delete('/ingredients/:id', requireRole('admin'), ingredientCtrl.Delete);
+
+// Branches — chỉ cho admin
+router.get('/branches', requireRole('admin'), branchCtrl.getList);
+router.get('/branches/:id', requireRole('admin'), branchCtrl.GetOne);
+router.post('/branches', requireRole('admin'), branchCtrl.Add);
+router.put('/branches/:id', requireRole('admin'), branchCtrl.Edit);
+router.delete('/branches/:id', requireRole('admin'), branchCtrl.Delete);
+
+// Categories — chỉ cho admin
 router.get('/categories', categoryCtrl.getList);
 router.get('/categories/:id', categoryCtrl.GetOne);
 router.post('/categories', requireRole('admin'), categoryCtrl.Add);
@@ -243,15 +316,14 @@ router.delete('/sizes/product/:productId', sizeCtrl.deleteByProduct); // 🆕 De
 
 // ✅ STANDARD CRUD ROUTES (Mobile compatible)
 router.get('/sizes', sizeCtrl.getList);
+router.post('/decrease-quantity', sizeCtrl.DecreaseQuantity); // ✅ Đổi lại thành sizeCtrl
 router.get('/sizes/:id', sizeCtrl.GetOne);
-router.post('/sizes', sizeCtrl.Add); // Enhanced with stock update
-router.put('/sizes/:id', sizeCtrl.Edit); // Enhanced with stock update  
-router.delete('/sizes/:id', sizeCtrl.Delete); // Enhanced with stock update
+router.post('/sizes', requireRole('admin'), sizeCtrl.Add);
+router.put('/sizes/:id', requireRole('admin'), sizeCtrl.Edit);
+router.delete('/sizes/:id', requireRole('admin'), sizeCtrl.Delete);
 
-// ——— CRUD cho Message ———
-// routes/message.route.js
-router.get('/messages/conversations', messageCtrl.getConversations);
-router.get("/messages/:userId", messageCtrl.getMessages);
-router.post('/messages', messageCtrl.sendMessage);
+//vnpay routes
+router.use('/vnpay', vnpayRoutes);
+
 
 module.exports = router;

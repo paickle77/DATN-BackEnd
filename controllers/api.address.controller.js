@@ -372,8 +372,24 @@ module.exports = {
     try {
       const { userId } = req.params;
 
+      // ✅ Validate userId
+      if (!userId || userId === 'null' || userId === 'undefined') {
+        return res.status(400).json({ 
+          success: false,
+          message: 'User ID không hợp lệ' 
+        });
+      }
+
+      // ✅ Kiểm tra ObjectId hợp lệ
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'User ID không đúng định dạng' 
+        });
+      }
+
       const defaultAddress = await Address.findOne({ 
-        user_id: userId, 
+        user_id: new mongoose.Types.ObjectId(userId), 
         isDefault: true 
       }).populate('user_id', 'name email phone');
 
@@ -390,6 +406,62 @@ module.exports = {
       });
     } catch (error) {
       console.error('❌ Lỗi lấy địa chỉ mặc định:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message || 'Lỗi server khi lấy địa chỉ mặc định' 
+      });
+    }
+  },
+
+  // ✅ THÊM: Lấy địa chỉ mặc định bằng account_id
+  getDefaultAddressByAccountId: async (req, res) => {
+    try {
+      const { accountId } = req.params;
+
+      // Validate accountId
+      if (!accountId || accountId === 'null' || accountId === 'undefined') {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Account ID không hợp lệ' 
+        });
+      }
+
+      // Kiểm tra ObjectId hợp lệ
+      if (!mongoose.Types.ObjectId.isValid(accountId)) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Account ID không đúng định dạng' 
+        });
+      }
+
+      // Tìm user trước bằng account_id
+      const user = await User.findOne({ account_id: new mongoose.Types.ObjectId(accountId) });
+      if (!user) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Không tìm thấy user với account ID này' 
+        });
+      }
+
+      // Tìm địa chỉ mặc định của user
+      const defaultAddress = await Address.findOne({ 
+        user_id: user._id, 
+        isDefault: true 
+      }).populate('user_id', 'name email phone');
+
+      if (!defaultAddress) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Không tìm thấy địa chỉ mặc định' 
+        });
+      }
+
+      res.json({
+        success: true,
+        data: defaultAddress
+      });
+    } catch (error) {
+      console.error('❌ Lỗi lấy địa chỉ mặc định bằng account_id:', error);
       res.status(500).json({ 
         success: false,
         error: error.message || 'Lỗi server khi lấy địa chỉ mặc định' 
