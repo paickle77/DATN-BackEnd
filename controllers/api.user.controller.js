@@ -1076,5 +1076,145 @@ userController.toggleCustomerLock = async (req, res) => {
 
 // ✅ GIỮ NGUYÊN TẤT CẢ CÁC HÀM KHÁC ĐỂ MOBILE APP KHÔNG BỊ ẢNH HƯỞNG
 
+//------------------update Fix web admin---------------------
+// ✅ THÊM: API CHỈ CHO WEB ADMIN - Lấy danh sách khách hàng kèm thông tin đầy đủ
+userController.getCustomersWithDetails = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '' } = req.query;
+    
+    console.log('🔍 [WEB ADMIN] Lấy danh sách khách hàng:', { page, limit, search });
+    
+    // Query users với account info
+    const users = await User.find()
+      .populate('account_id', 'email role is_lock provider created_at')
+      .sort({ created_at: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+    
+    // Filter theo search term nếu có
+    let filteredUsers = users;
+    if (search) {
+      filteredUsers = users.filter(user => 
+        (user.name && user.name.toLowerCase().includes(search.toLowerCase())) ||
+        (user.phone && user.phone.includes(search)) ||
+        (user.account_id?.email && user.account_id.email.toLowerCase().includes(search.toLowerCase()))
+      );
+    }
+    
+    // Format data cho frontend
+    const customersData = filteredUsers.map(user => ({
+      _id: user._id,
+      name: user.name || 'Chưa cập nhật',
+      phone: user.phone || '',
+      email: user.account_id?.email || '',
+      provider: user.account_id?.provider || 'local',
+      is_lock: user.account_id?.is_lock || false,
+      created_at: user.account_id?.created_at || user.created_at,
+      display_avatar: user.display_avatar || '/default-avatar.png',
+      total_orders: 0, // Có thể tính từ bills nếu cần
+      total_spent: 0,  // Có thể tính từ bills nếu cần
+      address_detail: {
+        full_address: 'Chưa cập nhật' // Có thể join từ addresses nếu cần
+      }
+    }));
+    
+    const totalCustomers = await User.countDocuments();
+    const totalPages = Math.ceil(totalCustomers / parseInt(limit));
+    
+    res.json({
+      success: true,
+      message: 'Lấy danh sách khách hàng thành công',
+      data: {
+        customers: customersData,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalCustomers,
+          limit: parseInt(limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Lỗi getCustomersWithDetails:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách khách hàng',
+      error: error.message
+    });
+  }
+};
+
+// ✅ THÊM: API lấy thống kê khách hàng cho web admin
+userController.getCustomerStats = async (req, res) => {
+  try {
+    console.log('📊 [WEB ADMIN] Lấy thống kê khách hàng');
+    
+    const totalCustomers = await User.countDocuments();
+    const totalAccounts = await Account.countDocuments({ role: 'user' });
+    const activeCustomers = await Account.countDocuments({ role: 'user', is_lock: false });
+    const lockedCustomers = await Account.countDocuments({ role: 'user', is_lock: true });
+    
+    res.json({
+      success: true,
+      message: 'Lấy thống kê thành công',
+      data: {
+        totalCustomers,
+        totalAccounts,
+        activeCustomers,
+        lockedCustomers,
+        customersWithOrders: 0, // Có thể tính từ bills
+        totalRevenue: 0         // Có thể tính từ bills
+      }
+    });
+  } catch (error) {
+    console.error('❌ Lỗi getCustomerStats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy thống kê',
+      error: error.message
+    });
+  }
+};
+
+// ✅ THÊM: API khóa/mở khóa khách hàng cho web admin
+userController.toggleCustomerLock = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_lock, reason, admin_note } = req.body;
+    
+    console.log('🔒 [WEB ADMIN] Toggle lock user:', { id, is_lock, reason });
+    
+    // Tìm user và account
+    const user = await User.findById(id).populate('account_id');
+    if (!user || !user.account_id) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khách hàng'
+      });
+    }
+    
+    // Update account status
+    await Account.findByIdAndUpdate(user.account_id._id, {
+      is_lock: is_lock,
+      lock_reason: reason || '',
+      admin_note: admin_note || '',
+      updated_at: new Date()
+    });
+    
+    res.json({
+      success: true,
+      message: `${is_lock ? 'Khóa' : 'Mở khóa'} tài khoản thành công`,
+      data: { user_id: id, is_lock }
+    });
+  } catch (error) {
+    console.error('❌ Lỗi toggleCustomerLock:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật trạng thái',
+      error: error.message
+    });
+  }
+};
+//-----------------Kết thúc Fix web admin---------------------
 
 module.exports = userController;

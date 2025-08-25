@@ -303,6 +303,9 @@ accountController.lockAccount = async (req, res) => {
 accountController.unlockAccount = async (req, res) => {
   try {
     const { id } = req.params;
+    //------------------update Fix web admin---------------------
+    const { reason = 'Admin unlock account' } = req.body;
+    //-----------------Kết thúc Fix web admin---------------------
 
     console.log('🔓 Mở khóa tài khoản ID:', id);
 
@@ -319,7 +322,8 @@ accountController.unlockAccount = async (req, res) => {
       { 
         is_lock: false,
         unlock_date: new Date(),
-        lock_reason: null
+        unlock_reason: reason,
+        lock_reason: null // Xóa lý do khóa cũ
       },
       { new: true }
     );
@@ -340,6 +344,9 @@ accountController.unlockAccount = async (req, res) => {
         account_id: account._id,
         email: account.email,
         is_lock: account.is_lock,
+        //------------------update Fix web admin---------------------
+        unlock_reason: reason,
+        //-----------------Kết thúc Fix web admin---------------------
         unlock_date: account.unlock_date
       }
     });

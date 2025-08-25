@@ -197,3 +197,23 @@ module.exports.updateOnlineStatus = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
+
+//------------------update Fix web admin---------------------
+/**
+ * Tạo shipper kèm Account từ web admin (không cần ảnh)
+ * Route: POST /shippers/create-with-account (form-data: full_name, email, phone, ...)
+ * Shipper sẽ tự sửa ảnh sau khi đăng nhập.
+ */
+module.exports.createShipperWithAccount = async (req, res) => {
+  try {
+    console.log('🔧 Web admin tạo shipper:', req.body);
+    
+    // Không cần xử lý ảnh, shipper tự sửa sau
+    // Tái dùng hàm tạo hiện có (giữ nguyên business logic)
+    return module.exports.createShipper(req, res);
+  } catch (err) {
+    console.error('createShipperWithAccount error:', err);
+    return res.status(500).json({ msg: err.message });
+  }
+};
+//-----------------Kết thúc Fix web admin---------------------

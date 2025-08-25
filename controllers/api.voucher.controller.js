@@ -65,6 +65,26 @@ exports.remove = async (req, res) => {
   }
 };
 
+//------------------update Fix web admin---------------------
+// ✅ ALIASES CHO WEB ADMIN - SỬ DỤNG CONVENTION GIỐNG CÁC CONTROLLER KHÁC
+exports.getList = exports.list;
+
+exports.GetOne = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const doc = await Voucher.findById(id);
+    if (!doc) return res.status(404).json({ success: false, msg: 'Không tìm thấy voucher' });
+    res.json({ success: true, data: doc });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: e.message });
+  }
+};
+
+exports.Add = exports.create;
+exports.Edit = exports.update;
+exports.Delete = exports.remove;
+//-----------------Kết thúc Fix web admin---------------------
+
 // ========== APPLY voucher (ghi nhận lượt dùng) ==========
 // Body: { account_id, code }
 exports.apply = async (req, res) => {

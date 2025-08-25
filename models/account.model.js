@@ -4,10 +4,13 @@ const AccountSchema = new mongoose.Schema({
   email:       { type: String, required: true, unique: true },
   password:    { type: String },
   role:        { type: String, enum: ['user', 'shipper', 'admin'], default: 'user' },
-  is_lock:     { type: Boolean, default: false },
-  lock_reason: { type: String, default: null },
-  lock_date:   { type: Date, default: null },
-  unlock_date: { type: Date, default: null },
+  //------------------update Fix web admin---------------------
+  is_lock:       { type: Boolean, default: false },
+  lock_reason:   { type: String, default: null },
+  lock_date:     { type: Date, default: null },
+  unlock_reason: { type: String, default: null },
+  unlock_date:   { type: Date, default: null },
+  //-----------------Kết thúc Fix web admin---------------------
   provider:    { type: String, enum: ['local', 'google', 'facebook'], default: 'local' },
   google_id:   { type: String, default: null },
   facebook_id: { type: String, default: null },

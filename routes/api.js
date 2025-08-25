@@ -28,6 +28,11 @@ const messageCtrl = require('../controllers/api.message.controller');
 const vnpayRoutes = require('../vnpay/vnpay.routes');
 const supplierCtrl = require('../controllers/api.supplier.controller');
 
+//------------------update Fix web admin---------------------
+// Web admin - quản lý voucher_user
+const voucherUserAdminCtrl = require('../controllers/api.voucherUserAdmin.controller');
+//-----------------Kết thúc Fix web admin---------------------
+
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
 router.post('/register', authCtrl.register);
@@ -46,11 +51,18 @@ router.get ('/account/:id',    accountCtrl.GetOne);
 // ——— CRUD cho Shipper ———
 router.get   ('/shippers',        shipperCtrl.getList);
 router.get   ('/shippers/:id',    shipperCtrl.GetOne);
-router.get('/shippers/:account_id', shipperCtrl.getShipperByAccountId);
-router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
+router.get('/shippers/account/:account_id', shipperCtrl.getShipperByAccountId);
 router.put('/shippers/:id', shipperCtrl.Edit);
 router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
-router.delete('/shippers/:id',    shipperCtrl.Delete);
+
+//------------------update Fix web admin---------------------
+// Tạo shipper thường (web admin) - CẦN AUTH
+router.post('/shippers', api_auth, requireRole('admin'), shipperCtrl.createShipper);
+// Tạo shipper kèm account (web admin) - không cần ảnh, shipper tự sửa sau
+router.post('/shippers/create-with-account', api_auth, requireRole('admin'), shipperCtrl.createShipperWithAccount);
+// Xóa shipper yêu cầu admin (giữ an toàn dữ liệu)
+router.delete('/shippers/:id', api_auth, requireRole('admin'), shipperCtrl.Delete);
+//-----------------Kết thúc Fix web admin---------------------
 
 // ——— CRUD cho Message ———
 // routes/message.route.js
@@ -59,7 +71,14 @@ router.get("/messages/:userId", messageCtrl.getMessages);
 router.post('/messages', messageCtrl.sendMessage); 
 
 
-// ——— CRUD cho User ———router.get('/users/:id', userCtrl.GetOne);
+//------------------update Fix web admin---------------------
+// ✅ Web admin routes - ĐẶT TRƯỚC để tránh conflict với :id routes
+router.get('/users/with-accounts', api_auth, requireRole('admin'), userCtrl.getCustomersWithDetails);
+router.get('/users/stats',         api_auth, requireRole('admin'), userCtrl.getCustomerStats);
+router.put('/users/:id/toggle-lock', api_auth, requireRole('admin'), userCtrl.toggleCustomerLock);
+//-----------------Kết thúc Fix web admin---------------------
+
+// ——— CRUD cho User ———
 router.get('/users', userCtrl.getList);
 router.get('/users/account/:account_id', userCtrl.getByAccountId); // ✅ Lấy user bằng account_id
 router.get('/users/:id', userCtrl.GetOne); // ✅ Lấy user bằng user_id
@@ -72,21 +91,9 @@ router.post('/ai/chat', aiCtrl.chat);
 router.get('/ai/suggestions', aiCtrl.getQuickSuggestions);
 router.get('/ai/product/:product_id', aiCtrl.getProductInfo);
 
-// --- CRUD cho Shippers
-router.post('/shippers', requireRole('admin'), shipperCtrl.createShipper);
-router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
-router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
-router.delete('/shippers/:id', shipperCtrl.Delete);
-
 // ✅ THÊM route GET accounts cho web admin
 router.get('/accounts', api_auth, requireRole('admin'), accountCtrl.getList);
 router.get('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.GetOne);
-
-router.get('/shippers/account/:account_id', shipperCtrl.getShipperByAccountId); // ✅ Sửa route path
-// 🆕 THÊM: Route tạo account + shipper mới
-router.put('/shippers/:id', upload.single('image'), shipperCtrl.Edit);
-router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
-router.delete('/shippers/:id', api_auth, requireRole('admin'), shipperCtrl.Delete);
 
 // ✅ Route khóa/mở khóa account CHỈ CHO WEB ADMIN
 router.put('/accounts/:id/lock', api_auth, requireRole('admin'), accountCtrl.lockAccount); // Khóa tài khoản
@@ -95,6 +102,10 @@ router.put('/accounts/:id/unlock', api_auth, requireRole('admin'), accountCtrl.u
 router.delete('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.Delete); // Xóa account
 
 // ——— CRUD cho bill ———
+//------------------update Fix web admin---------------------
+router.get('/bills/admin/kpi',           api_auth, requireRole('admin'), billCtrl.getAdminKPI);
+router.get('/bills/admin/daily-revenue', api_auth, requireRole('admin'), billCtrl.getAdminDailyRevenue);
+//-----------------Kết thúc Fix web admin---------------------
 router.get   ('/bills',        billCtrl.getList);
 router.get   ('/GetAllBills',  billCtrl.GetAllBills); // tên viết hoa có thể đổi thành /bills/all cho chuẩn REST
 router.get   ('/bills/:id',    billCtrl.GetOne);
@@ -170,6 +181,16 @@ router.put('/favorites/:id', favoriteCtrl.Edit);
 router.delete('/favorites/:id', favoriteCtrl.Delete);
 
 // Notifications - Sắp xếp routes cụ thể trước
+//------------------update Fix web admin---------------------
+// Web admin - endpoints riêng (không ảnh hưởng mobile)
+router.get('/notifications/admin/all', api_auth, requireRole('admin'), notificationCtrl.getListForAdmin);
+router.get('/notifications/admin/stats', api_auth, requireRole('admin'), notificationCtrl.getStats);
+router.post('/notifications/admin/broadcast', api_auth, requireRole('admin'), notificationCtrl.broadcast);
+router.put('/notifications/admin/mark-read-bulk', api_auth, requireRole('admin'), notificationCtrl.markReadBulk);
+router.put('/notifications/admin/bulk/mark-read', api_auth, requireRole('admin'), notificationCtrl.markReadBulk);
+router.delete('/notifications/admin/bulk/delete', api_auth, requireRole('admin'), notificationCtrl.bulkDelete);
+//-----------------Kết thúc Fix web admin---------------------
+
 router.get('/notifications', notificationCtrl.getList);
 router.get('/notifications/user/:userId', notificationCtrl.getListByUser);
 router.get('/notifications/unread-count/:userId', notificationCtrl.getUnreadCount);
@@ -177,9 +198,15 @@ router.put('/notifications/mark-all-read/:userId', notificationCtrl.markAllAsRea
 router.delete('/notifications/delete-all-read/:userId', notificationCtrl.deleteAllRead);
 router.get('/notifications/:id', notificationCtrl.GetOne);
 router.post('/notifications', notificationCtrl.Add);
-router.put('/notifications/:id/mark-read', notificationCtrl.markAsRead);
-router.put('/notifications/:id', notificationCtrl.Edit);
-router.delete('/notifications/:id', notificationCtrl.deleteNotification);
+//------------------update Fix web admin---------------------
+router.put('/notifications/:id/mark-read', api_auth, notificationCtrl.markAsRead); // Thêm auth để có thông tin user
+//-----------------Kết thúc Fix web admin---------------------
+//------------------update Fix web admin---------------------
+router.put('/notifications/:id', api_auth, notificationCtrl.Edit); // Thêm auth để có thông tin user
+//-----------------Kết thúc Fix web admin---------------------
+//------------------update Fix web admin---------------------
+router.delete('/notifications/:id', api_auth, notificationCtrl.deleteNotification); // Thêm auth để có thông tin user
+//-----------------Kết thúc Fix web admin---------------------
 
 // 🔄 GIỮ NGUYÊN 100% endpoints cũ cho mobile app
 router.get('/notifications/user/:userId', api_auth, notificationCtrl.getListByUser); // ✅ Mobile app endpoint
@@ -207,6 +234,20 @@ router.post('/voucher_users/mark-in-use', voucher_user.MarkVoucherInUse);
 // router.post('/voucher_users/mark-used', voucher_user.MarkVoucherAsUsed);
 // API cập nhật trạng thái voucher hết hạn tự động
 router.post('/voucher_users/update-expired', voucher_user.UpdateExpiredVouchers);
+
+//------------------update Fix web admin---------------------
+// ✅ CRUD cho Vouchers - THIẾU ROUTES CHO WEB ADMIN
+router.get('/vouchers', voucherCtrl.getList);
+router.get('/vouchers/:id', voucherCtrl.GetOne);
+router.post('/vouchers', api_auth, requireRole('admin'), voucherCtrl.Add);
+router.put('/vouchers/:id', api_auth, requireRole('admin'), voucherCtrl.Edit);
+router.delete('/vouchers/:id', api_auth, requireRole('admin'), voucherCtrl.Delete);
+
+// Web admin - quản lý voucher_user
+router.get   ('/admin/voucher_users',        api_auth, requireRole('admin'), voucherUserAdminCtrl.adminList);
+router.put   ('/admin/voucher_users/:id',    api_auth, requireRole('admin'), voucherUserAdminCtrl.updateStatus);
+router.delete('/admin/voucher_users/:id',    api_auth, requireRole('admin'), voucherUserAdminCtrl.remove);
+//-----------------Kết thúc Fix web admin---------------------
 
 // Payments
 router.get('/payments', paymentCtrl.getList);
@@ -264,17 +305,21 @@ router.delete('/products/:id', productCtrl.Delete);
 // ——— CRUD cho Sizes (ENHANCED) ———
 // ✅ WEB ADMIN ROUTES - đặt trước để tránh conflict  
 router.get('/sizes/product/:productId', sizeCtrl.getSizesByProduct); // 🆕 Get sizes by product
-router.post('/sizes/bulk-create', sizeCtrl.bulkCreate); // 🆕 Bulk create sizes
-router.post('/sizes/bulk-update', sizeCtrl.bulkUpdate); // 🆕 Bulk update sizes
-router.delete('/sizes/product/:productId', sizeCtrl.deleteByProduct); // 🆕 Delete all sizes of product
+//------------------update Fix web admin---------------------
+router.post('/sizes/bulk-create', api_auth, requireRole('admin'), sizeCtrl.bulkCreate); // 🆕 Bulk create sizes
+router.post('/sizes/bulk-update', api_auth, requireRole('admin'), sizeCtrl.bulkUpdate); // 🆕 Bulk update sizes
+router.delete('/sizes/product/:productId', api_auth, requireRole('admin'), sizeCtrl.deleteByProduct); // 🆕 Delete all sizes of product
+//-----------------Kết thúc Fix web admin---------------------
 
 // ✅ STANDARD CRUD ROUTES (Mobile compatible)
 router.get('/sizes', sizeCtrl.getList);
 router.post('/decrease-quantity', sizeCtrl.DecreaseQuantity); // ✅ Đổi lại thành sizeCtrl
 router.get('/sizes/:id', sizeCtrl.GetOne);
-router.post('/sizes', requireRole('admin'), sizeCtrl.Add);
-router.put('/sizes/:id', requireRole('admin'), sizeCtrl.Edit);
-router.delete('/sizes/:id', requireRole('admin'), sizeCtrl.Delete);
+//------------------update Fix web admin---------------------
+router.post('/sizes', api_auth, requireRole('admin'), sizeCtrl.Add);
+router.put('/sizes/:id', api_auth, requireRole('admin'), sizeCtrl.Edit);
+router.delete('/sizes/:id', api_auth, requireRole('admin'), sizeCtrl.Delete);
+//-----------------Kết thúc Fix web admin---------------------
 
 //vnpay routes
 router.use('/vnpay', vnpayRoutes);

@@ -7,17 +7,8 @@ const NotificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  content: {
-    type: String,
-    required: true,
-    maxlength: 500,
-    trim: true
-  },
-  title: {
-    type: String,
-    required: true,
-    default: 'Thông báo mới'
-  },
+  //------------------update Fix web admin---------------------
+  //-----------------Kết thúc Fix web admin---------------------
   content: {
     type: String,
     required: true,

@@ -1345,3 +1345,52 @@ module.exports.CancelOrder = async (req, res) => {
         });
     }
 };
+
+//------------------update Fix web admin---------------------
+/**
+ * GET /bills/admin/kpi
+ * Trả về vài KPI nhanh: tổng đơn, đơn hoàn tất, doanh thu hoàn tất, hủy/failed...
+ */
+module.exports.getAdminKPI = async (req, res) => {
+  try {
+    const bills = await Bill.find().select('status total created_at').lean();
+    const done = bills.filter(b => String(b.status).toLowerCase() === 'done');
+    const failed = bills.filter(b => ['failed','cancelled'].includes(String(b.status).toLowerCase()));
+    res.json({
+      success: true,
+      data: {
+        totalOrders: bills.length,
+        completedOrders: done.length,
+        cancelledOrders: failed.length,
+        completedRevenue: done.reduce((s,b)=> s + (Number(b.total)||0), 0),
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: e.message });
+  }
+};
+
+/**
+ * GET /bills/admin/daily-revenue?from=YYYY-MM-DD&to=YYYY-MM-DD
+ * Chuẩn hóa revenue theo ngày (chỉ đơn done)
+ */
+module.exports.getAdminDailyRevenue = async (req, res) => {
+  try {
+    const from = req.query.from ? new Date(req.query.from) : new Date('1970-01-01');
+    const to   = req.query.to   ? new Date(req.query.to)   : new Date();
+    const rows = await Bill.find({
+      created_at: { $gte: from, $lte: to },
+      status: 'done'
+    }).select('total created_at').lean();
+
+    const map = {};
+    rows.forEach(b => {
+      const key = new Date(b.created_at).toISOString().slice(0,10);
+      map[key] = (map[key] || 0) + (Number(b.total) || 0);
+    });
+    res.json({ success: true, data: map });
+  } catch (e) {
+    res.status(500).json({ success: false, msg: e.message });
+  }
+};
+//-----------------Kết thúc Fix web admin---------------------

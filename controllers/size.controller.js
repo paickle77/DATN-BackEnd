@@ -2,8 +2,10 @@ const Base = require('./base.controller');
 const sizes = require('../models/size.model');
 const Product = require('../models/product.model');
 
+//------------------update Fix web admin---------------------
 // Get base methods
 const baseController = Base(sizes);
+//-----------------Kết thúc Fix web admin---------------------
 
 // ✅ Override Add method với validation và stock update
 const Add = async (req, res) => {
@@ -29,8 +31,10 @@ const Add = async (req, res) => {
   }
 };
 
+//------------------update Fix web admin---------------------
 // ✅ Override Edit method
 const Edit = async (req, res) => {
+//-----------------Kết thúc Fix web admin---------------------  
   try {
     const updated = await sizes.findByIdAndUpdate(
       req.params.id,
@@ -70,7 +74,9 @@ const Delete = async (req, res) => {
       await product.updateStockFromSizes();
     }
     
+    //------------------update Fix web admin---------------------
     console.log('✅ Size deleted successfully:', req.params.id);
+    //-----------------Kết thúc Fix web admin---------------------
     res.json({ msg: 'OK' });
     
   } catch (err) {
@@ -79,8 +85,10 @@ const Delete = async (req, res) => {
   }
 };
 
+//------------------update Fix web admin---------------------
 // ✅ Cập nhật method giảm số lượng - không cần branch_id
 const DecreaseQuantity = async (req, res) => {
+//-----------------Kết thúc Fix web admin---------------------
   try {
     const { sizeId, quantityToDecrease } = req.body;
 
@@ -147,6 +155,7 @@ const DecreaseQuantity = async (req, res) => {
     });
   }
 };
+//------------------update Fix web admin---------------------
 
 // ✅ Get sizes by product
 const getSizesByProduct = async (req, res) => {
@@ -216,3 +225,4 @@ module.exports = {
   bulkUpdate,
   deleteByProduct
 };
+//-----------------Kết thúc Fix web admin---------------------
