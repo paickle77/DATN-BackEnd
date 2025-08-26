@@ -15,7 +15,7 @@ const billSchema = new Schema({
   voucher_user_id: { type: Schema.Types.ObjectId, ref: "Voucher_User", default: null }, // Tham chiếu voucher_user
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'ready', 'shipping', 'done', 'cancelled', 'failed', 'refund_pending', 'refunded'],
+    enum: ['pending', 'confirmed', 'ready', 'shipping', 'done', 'cancelled', 'failed', 'refund_pending', 'refunded', 'returned'],
     default: 'pending',
     required: true
   },

@@ -1193,10 +1193,10 @@ module.exports.StartShipping = async (req, res) => {
     }
 };
 
-// Complete Order
-module.exports.CompleteOrder = async (req, res) => {
+// Failed Order
+module.exports.FailedOrder = async (req, res) => {
     try {
-        const { orderId, shipperId, proofImage } = req.body;
+        const { orderId, shipperId, proof_images } = req.body;
 
         if (!orderId || !shipperId) {
             return res.status(400).json({ 
@@ -1205,70 +1205,10 @@ module.exports.CompleteOrder = async (req, res) => {
             });
         }
 
-        const bill = await Bill.findById(orderId);
-        if (!bill) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy đơn hàng' 
-            });
-        }
-
-        if (bill.shipper_id?.toString() !== shipperId) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Bạn không phải là người giao đơn hàng này' 
-            });
-        }
-
-        if (bill.status === 'done') {
+        if (!proof_images ) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Đơn hàng đã được hoàn thành trước đó' 
-            });
-        }
-
-        if (bill.status !== 'shipping') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Đơn hàng phải ở trạng thái "shipping" để hoàn thành' 
-            });
-        }
-
-        // Cập nhật trạng thái
-        bill.status = 'done';
-        bill.delivered_at = new Date();
-        bill.proof_images = proofImage;
-        await bill.save();
-
-        // Lấy thông tin shipper để trả về
-        const shipperInfo = await Shipper.findById(shipperId).lean();
-
-        res.json({ 
-            success: true, 
-            message: 'Hoàn thành đơn hàng thành công', 
-            data: {
-                ...bill.toObject(),
-                shipperName: shipperInfo?.full_name || shipperInfo?.name || 'Shipper không rõ'
-            }
-        });
-    } catch (error) {
-        console.error('❌ CompleteOrder error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Lỗi server: ' + error.message 
-        });
-    }
-};
-
-// Cancel Order
-module.exports.CancelOrder = async (req, res) => {
-    try {
-        const { orderId, shipperId, proofImage } = req.body;
-
-        if (!orderId || !shipperId) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Thiếu orderId hoặc shipperId' 
+                message: 'Vui lòng cung cấp ảnh minh chứng khi hủy đơn hàng' 
             });
         }
 
@@ -1295,9 +1235,9 @@ module.exports.CancelOrder = async (req, res) => {
         }
 
         // Cập nhật trạng thái
-        bill.status = 'cancelled';
+        bill.status = 'failed';
         bill.cancelled_at = new Date();
-        bill.proof_images = proofImage;
+        bill.proof_images = proof_images;
         await bill.save();
 
         res.json({ 
