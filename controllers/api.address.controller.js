@@ -10,6 +10,30 @@ const baseController = Base(Address);
 module.exports = {
   ...baseController,
 
+  // 🔥 THÊM: GET /addresses - Lấy tất cả addresses (cho admin web)
+  getList: async (req, res) => {
+    try {
+      const addresses = await Address.find()
+        .populate('user_id', 'name username full_name email phone')
+        .sort({ createdAt: -1 }); // Sắp xếp theo thời gian tạo mới nhất
+        
+      res.json({ 
+        success: true,
+        msg: 'OK', 
+        data: addresses,
+        count: addresses.length
+      });
+    } catch (err) {
+      console.error('❌ getList Address Error:', err);
+      res.status(500).json({ 
+        success: false,
+        msg: 'Lỗi khi lấy danh sách địa chỉ: ' + err.message,
+        data: [],
+        error: err.message
+      });
+    }
+  },
+
   // Thêm địa chỉ đầu tiên cho user mới
   createFirstAddress: async (req, res) => {
     try {
@@ -285,7 +309,7 @@ module.exports = {
     }
   },
 
-  // Lấy tất cả địa chỉ (giữ nguyên cho admin)
+  // Lấy tất cả địa chỉ (giữ nguyên cho admin - tương thích với code cũ)
   GetAllAddress: async (req, res) => {
     try {
       const list = await Address.find()

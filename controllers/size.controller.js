@@ -2,29 +2,39 @@ const Base = require('./base.controller');
 const sizes = require('../models/size.model');
 const Product = require('../models/product.model');
 
-// Export base methods nhưng override một số method
-module.exports = Base(sizes);
+//------------------update Fix web admin---------------------
+// Get base methods
+const baseController = Base(sizes);
+//-----------------Kết thúc Fix web admin---------------------
 
-// ✅ Override Add method
-module.exports.Add = async (req, res) => {
+// ✅ Override Add method với validation và stock update
+const Add = async (req, res) => {
   try {
     const obj = new sizes(req.body);
     const saved = await obj.save();
     
-    // Tự động cập nhật stock của product
-    const product = await Product.findById(saved.product_id);
-    if (product) {
-      await product.updateStockFromSizes();
+    console.log('✅ Size created successfully:', saved._id);
+    res.json({ msg: 'OK', data: saved });
+    
+  } catch (err) {
+    console.error('❌ Size creation error:', err);
+    
+    // Handle duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        msg: 'Size already exists for this product', 
+        data: null 
+      });
     }
     
-    res.json({ msg: 'OK', data: saved });
-  } catch (err) {
     res.status(400).json({ msg: err.message, data: null });
   }
 };
 
+//------------------update Fix web admin---------------------
 // ✅ Override Edit method
-module.exports.Edit = async (req, res) => {
+const Edit = async (req, res) => {
+//-----------------Kết thúc Fix web admin---------------------  
   try {
     const updated = await sizes.findByIdAndUpdate(
       req.params.id,
@@ -32,40 +42,53 @@ module.exports.Edit = async (req, res) => {
       { new: true, runValidators: true }
     );
     
-    // Tự động cập nhật stock của product
-    const product = await Product.findById(updated.product_id);
-    if (product) {
-      await product.updateStockFromSizes();
+    console.log('✅ Size updated successfully:', updated._id);
+    res.json({ msg: 'OK', data: updated });
+    
+  } catch (err) {
+    console.error('❌ Size update error:', err);
+    
+    // Handle duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        msg: 'Size name already exists for this product', 
+        data: null 
+      });
     }
     
-    res.json({ msg: 'OK', data: updated });
-  } catch (err) {
     res.status(400).json({ msg: err.message, data: null });
   }
 };
 
-// ✅ Override Delete method
-module.exports.Delete = async (req, res) => {
+// ✅ Override Delete method với stock update
+const Delete = async (req, res) => {
   try {
     const sizeToDelete = await sizes.findById(req.params.id);
     const productId = sizeToDelete.product_id;
     
     await sizes.findByIdAndDelete(req.params.id);
     
-    // Tự động cập nhật stock của product
+    // Update product stock sau khi xóa
     const product = await Product.findById(productId);
     if (product) {
       await product.updateStockFromSizes();
     }
     
+    //------------------update Fix web admin---------------------
+    console.log('✅ Size deleted successfully:', req.params.id);
+    //-----------------Kết thúc Fix web admin---------------------
     res.json({ msg: 'OK' });
+    
   } catch (err) {
+    console.error('❌ Size deletion error:', err);
     res.status(400).json({ msg: err.message });
   }
 };
 
+//------------------update Fix web admin---------------------
 // ✅ Cập nhật method giảm số lượng - không cần branch_id
-module.exports.DecreaseQuantity = async (req, res) => {
+const DecreaseQuantity = async (req, res) => {
+//-----------------Kết thúc Fix web admin---------------------
   try {
     const { sizeId, quantityToDecrease } = req.body;
 
@@ -132,3 +155,74 @@ module.exports.DecreaseQuantity = async (req, res) => {
     });
   }
 };
+//------------------update Fix web admin---------------------
+
+// ✅ Get sizes by product
+const getSizesByProduct = async (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const sizeList = await sizes.find({ product_id: productId }).populate('product_id', 'name');
+    res.json({ msg: 'OK', data: sizeList });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// ✅ Bulk create sizes
+const bulkCreate = async (req, res) => {
+  try {
+    const sizesData = req.body.sizes || [];
+    const created = await sizes.insertMany(sizesData);
+    res.json({ msg: 'Bulk create successful', data: created });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// ✅ Bulk update sizes
+const bulkUpdate = async (req, res) => {
+  try {
+    const updates = req.body.updates || [];
+    const results = [];
+    
+    for (const update of updates) {
+      const updated = await sizes.findByIdAndUpdate(update.id, update.data, { new: true });
+      results.push(updated);
+    }
+    
+    res.json({ msg: 'Bulk update successful', data: results });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// ✅ Delete all sizes of a product
+const deleteByProduct = async (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const result = await sizes.deleteMany({ product_id: productId });
+    res.json({ msg: 'Sizes deleted successfully', data: result });
+  } catch (error) {
+    res.status(500).json({ msg: error.message, data: null });
+  }
+};
+
+// Export all methods
+module.exports = {
+  // Base methods
+  getList: baseController.getList,
+  GetOne: baseController.GetOne,
+  
+  // Override methods
+  Add,
+  Edit,
+  Delete,
+  
+  // Additional methods
+  DecreaseQuantity,
+  getSizesByProduct,
+  bulkCreate,
+  bulkUpdate,
+  deleteByProduct
+};
+//-----------------Kết thúc Fix web admin---------------------

@@ -1,6 +1,7 @@
-// controllers/api.notification.controller.js
+// controllers/api.notification.controller.js - FIXED VERSION - Mobile Compatible
 const Base = require('./base.controller');
 const Notification = require('../models/notification.model');
+const User = require('../models/user.model');
 
 const controller = Base(Notification);
 
@@ -69,15 +70,30 @@ controller.markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
     console.log('Marking notification as read:', id);
+
+//------------------update Fix web admin---------------------
+    // Kiểm tra quyền của user
+    const user = req.user || req.account;
+    const userRole = user?.role || 'user';
     
-    const notification = await Notification.findByIdAndUpdate(
-      id,
+    let query = { _id: id };
+    
+    // User thường chỉ được đánh dấu thông báo của chính mình
+    if (userRole !== 'admin') {
+      const userId = user?.id || user?._id?.toString();
+      query.user_id = userId;
+    }
+    // Admin có thể đánh dấu mọi thông báo
+//-----------------Kết thúc Fix web admin---------------------
+    
+    const notification = await Notification.findOneAndUpdate(
+      query,
       { is_read: true },
       { new: true }
     );
 
     if (!notification) {
-      return res.status(404).json({ msg: 'Không tìm thấy thông báo', data: null });
+      return res.status(404).json({ msg: 'Không tìm thấy thông báo hoặc không có quyền', data: null });
     }
 
     res.json({ msg: 'Đã đánh dấu đã đọc', data: notification });
@@ -106,7 +122,7 @@ controller.markAllAsRead = async (req, res) => {
   }
 };
 
-// DELETE /notifications/:id - Xóa thông báo (chỉ được xóa khi đã đọc)
+// DELETE /notifications/:id - Xóa thông báo
 controller.deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
@@ -117,10 +133,27 @@ controller.deleteNotification = async (req, res) => {
     if (!notification) {
       return res.status(404).json({ msg: 'Không tìm thấy thông báo', data: null });
     }
+
+//------------------update Fix web admin---------------------
+    // Kiểm tra quyền của user
+    const user = req.user || req.account;
+    const userRole = user?.role || 'user';
     
-    if (!notification.is_read) {
-      return res.status(400).json({ msg: 'Chỉ có thể xóa thông báo đã đọc', data: null });
+    // Admin có thể xóa mọi thông báo, user thường chỉ xóa thông báo đã đọc của mình
+    if (userRole !== 'admin') {
+      // User thường chỉ được xóa thông báo đã đọc của chính mình
+      const userId = user?.id || user?._id?.toString();
+      
+      if (notification.user_id?.toString() !== userId) {
+        return res.status(403).json({ msg: 'Không có quyền xóa thông báo này', data: null });
+      }
+      
+      if (!notification.is_read) {
+        return res.status(400).json({ msg: 'Chỉ có thể xóa thông báo đã đọc', data: null });
+      }
     }
+    // Admin có thể xóa mọi thông báo mà không cần kiểm tra is_read
+//-----------------Kết thúc Fix web admin---------------------
     
     await Notification.findByIdAndDelete(id);
     console.log('Successfully deleted notification:', id);
@@ -303,7 +336,8 @@ controller.Edit = async (req, res) => {
     const currentUserId = user.id || user._id?.toString();
     const userRole = user.role || 'user';
 
-    // Kiểm tra quyền
+//------------------update Fix web admin---------------------
+    // Admin có thể sửa mọi thông báo, user thường chỉ sửa thông báo của mình
     const canEdit = userRole === 'admin' || 
                    currentUserId === notification.user_id?.toString();
 
@@ -319,8 +353,9 @@ controller.Edit = async (req, res) => {
     
     // Admin được phép sửa nhiều hơn
     if (userRole === 'admin') {
-      allowedFields = ['is_read', 'content', 'title'];
+      allowedFields = ['is_read', 'content', 'title', 'type'];
     }
+//-----------------Kết thúc Fix web admin---------------------
 
     const updateData = {};
     Object.keys(req.body).forEach(key => {
@@ -383,7 +418,7 @@ controller.getStats = async (req, res) => {
   }
 };
 
-// 🆕 Bulk operations - CHỈ CHO WEB ADMIN
+// 🆕 Bulk operations - CHỈ CHỌ WEB ADMIN
 controller.markReadBulk = async (req, res) => {
   try {
     const user = req.user || req.account;
@@ -418,6 +453,43 @@ controller.markReadBulk = async (req, res) => {
     res.status(400).json({ msg: err.message, data: null });
   }
 };
+
+//------------------update Fix web admin---------------------
+// 🆕 THÊM bulk delete cho web admin
+controller.bulkDelete = async (req, res) => {
+  try {
+    const user = req.user || req.account;
+    
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ 
+        msg: 'Không có quyền xóa thông báo', 
+        data: null 
+      });
+    }
+
+    const { notification_ids } = req.body;
+
+    if (!Array.isArray(notification_ids) || notification_ids.length === 0) {
+      return res.status(400).json({ 
+        msg: 'Danh sách ID thông báo không hợp lệ', 
+        data: null 
+      });
+    }
+
+    const result = await Notification.deleteMany({
+      _id: { $in: notification_ids }
+    });
+
+    res.json({ 
+      msg: `Đã xóa ${result.deletedCount} thông báo`,
+      data: { deleted_count: result.deletedCount }
+    });
+  } catch (err) {
+    console.error('bulkDelete error:', err);
+    res.status(400).json({ msg: err.message, data: null });
+  }
+};
+//-----------------Kết thúc Fix web admin---------------------
 
 
 module.exports = controller;

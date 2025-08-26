@@ -1,3 +1,4 @@
+// models/voucher_user.model.js (hoặc đúng path bạn đang dùng)
 const mongoose = require('./db');
 const Schema = mongoose.Schema;
 
@@ -18,7 +19,8 @@ const Voucher_userSchema = new Schema({
   saved_at: { type: Date, default: Date.now }, // Thời gian user lưu voucher
   used_at: { type: Date }, // Thời gian sử dụng thành công
 }, {
-  collection: 'voucher_user'
+  collection: 'voucher_user',
+  timestamps: true
 });
 
 // ❌ XÓA unique constraint để cho phép voucher vô hạn lượt

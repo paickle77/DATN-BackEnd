@@ -21,6 +21,19 @@ const supplierController = {
         });
       }
 
+//------------------update Fix web admin---------------------
+      // Validate rating (1-5)
+      if (req.body.rating) {
+        const rating = Number(req.body.rating);
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+          return res.status(400).json({ 
+            msg: 'Đánh giá phải là số nguyên từ 1 đến 5', 
+            data: null 
+          });
+        }
+      }
+//-----------------Kết thúc Fix web admin---------------------
+
       // Validate contract dates
       if (req.body.contract_start_date && req.body.contract_end_date) {
         const startDate = new Date(req.body.contract_start_date);
@@ -53,6 +66,19 @@ const supplierController = {
           data: null 
         });
       }
+
+//------------------update Fix web admin---------------------
+      // Validate rating (1-5)
+      if (req.body.rating) {
+        const rating = Number(req.body.rating);
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+          return res.status(400).json({ 
+            msg: 'Đánh giá phải là số nguyên từ 1 đến 5', 
+            data: null 
+          });
+        }
+      }
+//-----------------Kết thúc Fix web admin---------------------
 
       // Validate contract dates
       if (req.body.contract_start_date && req.body.contract_end_date) {

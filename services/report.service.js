@@ -1,8 +1,8 @@
 // services/report.service.js
 
 const ExcelJS = require('exceljs');
-const Order = require('../models/order.model');
-const OrderDetail = require('../models/orderDetail.model');
+const Bill = require('../models/bill.model');
+const BillDetail = require('../models/BillDetail.model');
 
 /**
  * Sinh ra Excel báo cáo doanh thu theo khoảng fromDate–toDate,
@@ -14,19 +14,19 @@ const OrderDetail = require('../models/orderDetail.model');
  */
 async function generateReportBuffer(fromDate, toDate) {
   // 1. Lấy đơn hàng trong khoảng
-  const orders = await Order.find({
+  const bills = await Bill.find({
     created_at: { $gte: fromDate, $lte: toDate }
   }).lean();
 
   // 2. Lấy chi tiết
-  const orderIds = orders.map(o => o._id);
-  const details = await OrderDetail.find({
-    order_id: { $in: orderIds }
+  const billIds = bills.map(b => b._id);
+  const details = await BillDetail.find({
+    bill_id: { $in: billIds }
   }).lean();
 
   // 3. Tính tổng
-  const totalOrders     = orders.length;
-  const totalCustomers  = new Set(orders.map(o => o.user_id)).size;
+  const totalBills      = bills.length;
+  const totalCustomers  = new Set(bills.map(b => b.user_id)).size;
   const totalRevenue    = details.reduce((sum, d) => sum + d.price * d.quantity, 0);
 
   // 4. Tạo workbook
@@ -41,7 +41,7 @@ async function generateReportBuffer(fromDate, toDate) {
   ];
   summary.addRows([
     { metric: 'Tổng doanh thu (₫)', value: totalRevenue },
-    { metric: 'Tổng đơn hàng',       value: totalOrders },
+    { metric: 'Tổng đơn hàng',       value: totalBills },
     { metric: 'Tổng khách hàng',     value: totalCustomers },
   ]);
   summary.getColumn('value').numFmt = '#,##0';
@@ -49,18 +49,18 @@ async function generateReportBuffer(fromDate, toDate) {
   // --- Sheet Chi tiết
   detail.columns = [
     { header: '#',         key: 'idx',    width: 5  },
-    { header: 'Order ID',  key: 'orderId',width: 30 },
+    { header: 'Bill ID',   key: 'billId', width: 30 },
     { header: 'Quantity',  key: 'qty',    width: 12 },
     { header: 'Unit Price',key: 'price',  width: 15 },
     { header: 'Total (₫)', key: 'total',  width: 15 },
   ];
   details.forEach((d, i) => {
     detail.addRow({
-      idx:     i + 1,
-      orderId: d.order_id.toString(),
-      qty:     d.quantity,
-      price:   d.price,
-      total:   d.price * d.quantity
+      idx:    i + 1,
+      billId: d.bill_id.toString(),
+      qty:    d.quantity,
+      price:  d.price,
+      total:  d.price * d.quantity
     });
   });
   detail.getColumn('price').numFmt = '#,##0';

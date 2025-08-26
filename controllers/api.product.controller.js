@@ -46,6 +46,28 @@ const Add = async (req, res) => {
     const obj = new Product(productData);
     const saved = await obj.save();
     
+    //------------------update Fix web admin---------------------
+  // Hỗ trợ web admin đẩy kèm danh sách sizes khi tạo sản phẩm
+  if (Array.isArray(req.body.sizes)) {
+    const sizes = (req.body.sizes || [])
+      .filter(s => s && s.size)
+      .map(s => ({
+        product_id: saved._id,
+        size: String(s.size).trim(),
+        price_increase: Number(s.price_increase || 0),
+        quantity: Number(s.quantity || 0),
+      }));
+
+    // Thay thế toàn bộ sizes của product (không ảnh hưởng mobile vì mobile không gửi sizes)
+    await Size.deleteMany({ product_id: saved._id });
+    if (sizes.length) {
+      await Size.insertMany(sizes);
+    }
+    // Đồng bộ tồn kho = tổng quantity của sizes
+    await saved.updateStockFromSizes();
+  }
+    //-----------------Kết thúc Fix web admin---------------------
+
     // Tự động tính stock từ sizes nếu có
     await saved.updateStockFromSizes();
     
@@ -113,6 +135,30 @@ const Edit = async (req, res) => {
       { new: true, runValidators: true }
     );
     
+    //------------------update Fix web admin---------------------
+  // Nếu web admin gửi kèm sizes thì thay thế toàn bộ sizes của product
+  if (Object.prototype.hasOwnProperty.call(req.body, 'sizes') && Array.isArray(req.body.sizes)) {
+    const productId = req.params.id;
+    const sizes = (req.body.sizes || [])
+      .filter(s => s && s.size)
+      .map(s => ({
+        product_id: productId,
+        size: String(s.size).trim(),
+        price_increase: Number(s.price_increase || 0),
+        quantity: Number(s.quantity || 0),
+      }));
+
+    await Size.deleteMany({ product_id: productId });
+    if (sizes.length) {
+      await Size.insertMany(sizes);
+    }
+    const prod = await Product.findById(productId);
+    if (prod && prod.updateStockFromSizes) {
+      await prod.updateStockFromSizes();
+    }
+  }
+    //-----------------Kết thúc Fix web admin---------------------
+
     // Tự động tính stock từ sizes
     await updated.updateStockFromSizes();
     

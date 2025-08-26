@@ -36,10 +36,29 @@ const billSchema = new Schema({
   refund_processed_at: { type: Date }, // Thời gian xử lý hoàn tiền
   refund_amount: { type: Number, default: 0 }, // Số tiền hoàn
   refund_reason: { type: String, default: '' }, // Lý do hoàn tiền
+//------------------update Fix web admin---------------------
+  // 🔥 THÊM CÁC TRƯỜNG VNPAY
+  vnpay_transaction_no: { type: String, default: '' }, // Mã giao dịch VNPay
+  vnpay_transaction_date: { type: String, default: '' }, // Ngày giao dịch VNPay
+  vnpay_refund_code: { type: String, default: '' }, // Mã hoàn tiền VNPay
+  payment_status: { 
+    type: String, 
+    enum: ['pending', 'paid', 'failed', 'refunded'], 
+    default: 'pending' 
+  }, // Trạng thái thanh toán
+  
+  // 🔥 THÊM CÁC TRƯỜNG HOÀN TRẢ HÀNG
+  return_reason: { type: String, default: '' }, // Lý do hoàn trả hàng
+  return_date: { type: Date }, // Ngày hoàn trả hàng
+  return_note: { type: String, default: '' }, // Ghi chú hoàn trả
+  admin_note: { type: String, default: '' }, // Ghi chú của admin
+//-----------------Kết thúc Fix web admin---------------------
+
 }, { timestamps: true });
 
 // Index để tìm kiếm nhanh hơn
 billSchema.index({ user_id: 1, status: 1 });
 billSchema.index({ created_at: -1 });
+billSchema.index({ shipper_id: 1, status: 1 }); // 🔥 THÊM: Index cho shipper
 
 module.exports = mongoose.model('Bill', billSchema);

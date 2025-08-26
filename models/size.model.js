@@ -1,27 +1,32 @@
-// size.model.js - Sửa lại
 const mongoose = require('./db');
 
 const SizeSchema = new mongoose.Schema({
-  product_id: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Product', 
-    required: true 
+  product_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
   },
   quantity: { 
     type: Number, 
     required: true, 
     min: 0
   },
-  size: { 
-    type: String, 
-    required: true 
+  size: {
+    type: String,
+    required: true,
+    trim: true
   },
-  price_increase: { 
-    type: Number, 
-    default: 0 
+  price_increase: {
+    type: Number,
+    default: 0,
+    min: 0
   }
 }, {
-  collection: 'sizes'
+  collection: 'sizes',
+  timestamps: { 
+    createdAt: 'created_at', 
+    updatedAt: 'updated_at' 
+  }
 });
 
 // Tạo index để tối ưu query

@@ -1,4 +1,4 @@
-// models/notification.model.js
+// models/notification.model.js - MINIMAL CHANGES để tương thích
 const mongoose = require('./db');
 
 const NotificationSchema = new mongoose.Schema({
@@ -7,6 +7,8 @@ const NotificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  //------------------update Fix web admin---------------------
+  //-----------------Kết thúc Fix web admin---------------------
   content: {
     type: String,
     required: true,
@@ -15,16 +17,14 @@ const NotificationSchema = new mongoose.Schema({
   },
   title: {
     type: String,
-    required: true,
-    default: 'Thông báo mới'
-  },
-  content: {
-    type: String,
-    required: true
+    maxlength: 100,
+    trim: true,
+    default: '' // Tương thích với code cũ
   },
   is_read: {
     type: Boolean,
-    default: false
+    default: false,
+    index: true // Tối ưu query filter
   },
   icon: {
     type: String,

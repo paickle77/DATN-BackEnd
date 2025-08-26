@@ -4,7 +4,15 @@ const UserSchema = new mongoose.Schema({
   account_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' },
   name:       { type: String },
   phone:      { type: String },
-  image:      { type: String },
+  
+  // ✅ THÊM: Các field cần thiết cho web admin (không bắt buộc để mobile app vẫn hoạt động)
+  gender:     { type: String, enum: ['male', 'female', 'other'], default: null },
+  birth_date: { type: Date, default: null },
+  avatar:     { type: String, default: 'avatarmacdinh.png' }, // Có default value
+  
+  // ✅ GIỮ NGUYÊN: Field image cho mobile app (backward compatibility)
+  image:      { type: String }, // Mobile app có thể vẫn dùng field này
+  
   address_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },
   // ✅ THÊM: Các field cần thiết cho web admin (không bắt buộc để mobile app vẫn hoạt động)
   gender:     { type: String, enum: ['nam', 'nữ', 'khác'], default: null },
