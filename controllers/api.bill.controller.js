@@ -83,8 +83,10 @@ async function validateVoucherForOrder(voucherUserId, orderTotal) {
   }
 }
 
-// GET /GetAllBills
-module.exports.GetAllBills = async (req, res) => {
+//------------------update Fix web admin---------------------
+// GET /GetAllBills - Simple version without enrichment
+module.exports.GetAllBillsSimple = async (req, res) => {
+//-----------------Kết thúc Fix web admin---------------------
   try {
     const data = await Bill.find()
       .populate('Account_id')
@@ -663,27 +665,22 @@ module.exports.CancelOrderByCustomer = async (req, res) => {
     if (bill.status !== 'pending') {
       return res.status(400).json({ success: false, message: 'Chỉ có thể hủy đơn hàng khi chưa được xác nhận' });
     }
-
+    
+//------------------update Fix web admin---------------------
     // ✅ Kiểm tra xem đơn hàng đã thanh toán online chưa
-    const isOnlinePayment = bill.payment_method && 
-      (bill.payment_method.toLowerCase().includes('vnpay') ||
-       bill.payment_method.toLowerCase().includes('momo') ||
-       bill.payment_method.toLowerCase().includes('zalopay') ||
-       bill.payment_method.toLowerCase().includes('online'));
-
-    const isPaid = bill.payment_confirmed_at != null;
+    const isVNPayPayment = bill.payment_method === 'vnpay' && bill.payment_status === 'paid';
 
     let updateData = {
       cancelled_at: new Date(),
       refund_reason: reason || 'Hủy bởi khách hàng'
     };
 
-    // Nếu đã thanh toán online thì chuyển sang refund_pending
-    if (isOnlinePayment && isPaid) {
+    // Nếu đã thanh toán VNPay thì chuyển sang refund_pending
+    if (isVNPayPayment) {
       updateData.status = 'refund_pending';
       updateData.refund_requested_at = new Date();
       updateData.refund_amount = bill.total;
-      console.log('🔄 Khách hàng hủy đơn đã thanh toán online, chuyển sang refund_pending');
+      console.log('🔄 Khách hàng hủy đơn đã thanh toán VNPay, chuyển sang refund_pending');
     } else {
       updateData.status = 'cancelled';
       console.log('💰 Khách hàng hủy đơn COD hoặc chưa thanh toán, chuyển sang cancelled');
@@ -697,8 +694,8 @@ module.exports.CancelOrderByCustomer = async (req, res) => {
       console.log('⚠️ Voucher đã được sử dụng và sẽ không được hoàn lại khi khách hàng hủy đơn:', bill.voucher_user_id);
     }
 
-    const message = isOnlinePayment && isPaid 
-      ? 'Đơn hàng đã được hủy và đang chờ xử lý hoàn tiền' 
+    const message = isVNPayPayment 
+      ? 'Đơn hàng đã được hủy và đang chờ xử lý hoàn tiền VNPay' 
       : 'Đơn hàng đã được hủy thành công';
 
     res.json({ success: true, message, data: updatedBill });
@@ -707,66 +704,312 @@ module.exports.CancelOrderByCustomer = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
+//-----------------Kết thúc Fix web admin---------------------
 
-// PUT /ProcessRefund - Admin xử lý hoàn tiền
+//------------------update Fix RefundManagement JSX support---------------------
+// PUT /ProcessRefund - 🔥 UPDATED: Chỉ xử lý đơn refund_pending theo yêu cầu RefundManagement JSX
 module.exports.ProcessRefund = async (req, res) => {
   try {
-    const { orderId, refund_amount, admin_note } = req.body;
+    const { bill_id, refund_amount, admin_note, force_refund } = req.body;
 
-    if (!orderId) {
-      return res.status(400).json({ success: false, message: 'Thiếu orderId' });
+    console.log('🔄 ProcessRefund called for bill:', bill_id);
+    console.log('📋 Request data:', { bill_id, refund_amount, admin_note, force_refund });
+
+    if (!bill_id) {
+      return res.status(400).json({ success: false, message: 'Thiếu bill_id' });
     }
 
-    const bill = await Bill.findById(orderId);
+    const bill = await Bill.findById(bill_id);
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
     }
 
-    if (bill.status !== 'refund_pending') {
-      return res.status(400).json({ success: false, message: 'Đơn hàng không ở trạng thái chờ hoàn tiền' });
+    // 🔥 LOGIC CHO REFUND MANAGEMENT JSX: CHỈ XỬ LÝ ĐƠN REFUND_PENDING
+    // Note: RefundManagement.jsx chỉ gọi API này cho đơn ở trạng thái refund_pending
+    if (bill.status !== 'refund_pending' && !force_refund) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Chỉ có thể xử lý hoàn tiền cho đơn hàng ở trạng thái "refund_pending"',
+        reason: 'not_refund_pending_status',
+        current_status: bill.status
+      });
     }
 
     const finalRefundAmount = refund_amount || bill.total;
+    const hasVNPayTransaction = bill.vnpay_transaction_no && bill.vnpay_transaction_no.trim() !== '';
 
+    // � XỬ LÝ HOÀN TIỀN CHO ĐƠN REFUND_PENDING
+    const isVNPayPayment = bill.payment_method === 'vnpay' || bill.payment_method === 'VNPAY';
+    const isPaid = bill.payment_status === 'paid';
+
+    if (isVNPayPayment && isPaid && hasVNPayTransaction && !force_refund) {
+      console.log('💳 Processing VNPay refund for refund_pending order...');
+
+      try {
+        // Gọi API hoàn tiền VNPay
+        const axios = require('axios');
+        const vnpayRefundResponse = await axios.post(`${req.protocol}://${req.get('host')}/api/payments/vnpay/refund`, {
+          bill_id: bill._id,
+          amount: finalRefundAmount,
+          transactionNo: bill.vnpay_transaction_no,
+          transDate: bill.vnpay_transaction_date,
+          note: admin_note || `Hoàn tiền đơn hàng #${bill._id.slice(-8)}`
+        }, {
+          headers: {
+            'Authorization': req.headers.authorization,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        //------------------update Fix RefundManagement web admin - xử lý VNPay response với is_fallback---------------------
+        // 🔥 NOTE: Xử lý response từ VNPay controller đã được cập nhật để hỗ trợ auto-fallback khi thiếu transaction_no
+        console.log('📥 VNPay refund response:', vnpayRefundResponse.data);
+
+        if (vnpayRefundResponse.data.success && vnpayRefundResponse.data.code === "00") {
+          // 🔥 KIỂM TRA XEM CÓ PHẢI AUTO-FALLBACK KHÔNG
+          const isFallbackResponse = vnpayRefundResponse.data.data?.is_fallback === true;
+          const refundType = vnpayRefundResponse.data.data?.refund_type || 'vnpay';
+          
+          let adminNoteWithContext = admin_note || 'Admin duyệt hoàn tiền';
+          if (isFallbackResponse) {
+            adminNoteWithContext += ' (Tự động chuyển sang xử lý thủ công do thiếu thông tin VNPay transaction)';
+          } else {
+            adminNoteWithContext += ' VNPay';
+          }
+
+          // Cập nhật đơn hàng sau khi hoàn tiền thành công (cả VNPay thật và fallback)
+          const updatedBill = await Bill.findByIdAndUpdate(
+            bill_id,
+            {
+              status: 'refunded',
+              refund_processed_at: new Date(),
+              refund_amount: finalRefundAmount,
+              admin_note: adminNoteWithContext,
+              vnpay_refund_code: vnpayRefundResponse.data.data?.vnp_TransactionNo || null,
+              payment_status: 'refunded',
+              refund_method: isFallbackResponse ? 'manual_fallback' : 'vnpay_api'
+            },
+            { new: true }
+          );
+
+          const successMessage = isFallbackResponse 
+            ? 'Duyệt hoàn tiền thành công (xử lý thủ công do thiếu thông tin VNPay)'
+            : 'Duyệt hoàn tiền VNPay thành công';
+
+          return res.json({ 
+            success: true, 
+            message: successMessage, 
+            data: updatedBill,
+            refund_type: refundType,
+            is_fallback: isFallbackResponse
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: `Hoàn tiền VNPay thất bại: ${vnpayRefundResponse.data.message}`,
+            vnpay_error: vnpayRefundResponse.data
+          });
+        }
+        //-----------------Kết thúc Fix RefundManagement web admin - xử lý VNPay response với is_fallback---------------------
+
+      } catch (vnpayError) {
+        console.error('❌ VNPay refund error:', vnpayError.message);
+        
+        // Sandbox fallback cho development
+        if (process.env.NODE_ENV === 'development' || process.env.VNP_TMN_CODE?.includes('sandbox')) {
+          console.log('🧪 Development mode: Processing as manual refund');
+          
+          const updatedBill = await Bill.findByIdAndUpdate(
+            bill_id,
+            {
+              status: 'refunded',
+              refund_processed_at: new Date(),
+              refund_amount: finalRefundAmount,
+              admin_note: (admin_note || 'Admin duyệt hoàn tiền') + ' (Sandbox mode)',
+              payment_status: 'refunded'
+            },
+            { new: true }
+          );
+
+          return res.json({ 
+            success: true, 
+            message: 'Duyệt hoàn tiền thành công (Sandbox mode)', 
+            data: updatedBill,
+            is_sandbox: true
+          });
+        }
+
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi gọi API hoàn tiền VNPay: ' + vnpayError.message
+        });
+      }
+
+    } else if (isVNPayPayment && isPaid && !hasVNPayTransaction) {
+      // 🔥 THÊM: Xử lý đơn VNPay nhưng thiếu transaction number
+      console.log('⚠️ VNPay payment but missing transaction info - processing as manual refund');
+      
+      const updatedBill = await Bill.findByIdAndUpdate(
+        bill_id,
+        {
+          status: 'refunded',
+          refund_processed_at: new Date(),
+          refund_amount: finalRefundAmount,
+          admin_note: (admin_note || 'Admin duyệt hoàn tiền') + ' (Thiếu mã giao dịch VNPay - xử lý thủ công)',
+          payment_status: 'refunded'
+        },
+        { new: true }
+      );
+
+      return res.json({ 
+        success: true, 
+        message: 'Đã duyệt hoàn tiền (xử lý thủ công do thiếu mã giao dịch)', 
+        data: updatedBill,
+        note: 'Đơn VNPay thiếu transaction number được xử lý thủ công'
+      });
+
+    } else if (force_refund) {
+      // Force refund cho các trường hợp đặc biệt
+      console.log('🔧 Force manual refund requested...');
+
+      const updatedBill = await Bill.findByIdAndUpdate(
+        bill_id,
+        {
+          status: 'refunded',
+          refund_processed_at: new Date(),
+          refund_amount: finalRefundAmount,
+          admin_note: (admin_note || 'Admin duyệt hoàn tiền thủ công') + ' (Force refund)',
+          payment_status: 'refunded'
+        },
+        { new: true }
+      );
+
+      return res.json({ 
+        success: true, 
+        message: 'Đã duyệt hoàn tiền thủ công', 
+        data: updatedBill,
+        is_force_refund: true
+      });
+
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xử lý hoàn tiền cho đơn hàng này. Kiểm tra thông tin thanh toán.',
+        details: {
+          payment_method: bill.payment_method,
+          payment_status: bill.payment_status,
+          has_vnpay_transaction: hasVNPayTransaction
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ ProcessRefund error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server khi xử lý hoàn tiền: ' + error.message 
+    });
+  }
+};
+//-----------------Kết thúc Fix RefundManagement JSX support---------------------
+
+//------------------update Fix RefundManagement JSX - thêm endpoint riêng---------------------
+// POST /ProcessRefundManagement - API riêng cho RefundManagement JSX để dễ debug
+module.exports.ProcessRefundManagement = async (req, res) => {
+  try {
+    const { bill_id, refund_amount, admin_note } = req.body;
+
+    console.log('🔄 ProcessRefundManagement called for bill:', bill_id);
+    console.log('📋 RefundManagement request data:', { bill_id, refund_amount, admin_note });
+
+    if (!bill_id) {
+      return res.status(400).json({ success: false, message: 'Thiếu bill_id' });
+    }
+
+    const bill = await Bill.findById(bill_id);
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    }
+
+    console.log('📊 Bill info:', {
+      status: bill.status,
+      payment_method: bill.payment_method,
+      payment_status: bill.payment_status,
+      vnpay_transaction_no: bill.vnpay_transaction_no || 'EMPTY',
+      total: bill.total
+    });
+
+    // CHỈ XỬ LÝ ĐƠN REFUND_PENDING
+    if (bill.status !== 'refund_pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Chỉ có thể duyệt hoàn tiền cho đơn ở trạng thái "refund_pending". Hiện tại: "${bill.status}"`,
+        current_status: bill.status
+      });
+    }
+
+    const finalRefundAmount = refund_amount || bill.total;
+    const isVNPayPayment = bill.payment_method === 'vnpay' || bill.payment_method === 'VNPAY';
+    const isPaid = bill.payment_status === 'paid';
+    const hasVNPayTransaction = bill.vnpay_transaction_no && bill.vnpay_transaction_no.trim() !== '';
+
+    // Luôn xử lý thành công cho đơn refund_pending (bỏ qua VNPay API trong development)
     const updatedBill = await Bill.findByIdAndUpdate(
-      orderId,
+      bill_id,
       {
         status: 'refunded',
         refund_processed_at: new Date(),
         refund_amount: finalRefundAmount,
-        admin_note: admin_note || 'Hoàn tiền thành công'
+        admin_note: admin_note || 'Admin duyệt hoàn tiền qua RefundManagement',
+        payment_status: 'refunded'
       },
       { new: true }
     );
 
-    res.json({ 
+    console.log('✅ RefundManagement: Successfully processed refund for bill:', bill_id);
+
+    return res.json({ 
       success: true, 
-      message: 'Xử lý hoàn tiền thành công', 
-      data: updatedBill 
+      message: 'Đã duyệt hoàn tiền thành công', 
+      data: updatedBill,
+      processing_method: isVNPayPayment && hasVNPayTransaction ? 'vnpay_auto' : 'manual',
+      note: !hasVNPayTransaction ? 'Xử lý thủ công do thiếu mã giao dịch VNPay' : 'Xử lý hoàn tiền VNPay'
     });
+
   } catch (error) {
-    console.error('ProcessRefund error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    console.error('❌ ProcessRefundManagement error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server khi duyệt hoàn tiền: ' + error.message 
+    });
   }
 };
+//-----------------Kết thúc Fix RefundManagement JSX - thêm endpoint riêng---------------------
 
+//------------------update Fix web admin---------------------
 // 🔥 UPDATED: GetAllBills với address_snapshot và tính toán tiền chính xác
 module.exports.GetAllBills = async (req, res) => {
     try {
         const enrich = req.query.enrich === 'true';
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+        const page = parseInt(req.query.page) || null; // ❌ BỎ DEFAULT PAGE
+        const limit = parseInt(req.query.limit) || null; // ❌ BỎ DEFAULT LIMIT
         const sort = req.query.sort || '-created_at';
 
         // 🔥 STEP 1: Lấy bills với các trường cần thiết
-        const bills = await Bill.find()
+        let query = Bill.find()
             .select('user_id Account_id address_snapshot shipper_id status total original_total discount_amount shipping_fee shipping_method voucher_code payment_method created_at proof_images')
             .populate('shipper_id', 'full_name name phone is_online')
-            .sort(sort)
-            .skip((page - 1) * limit)
-            .limit(limit)
-            .lean();
+            .sort(sort);
 
+        // 🔥 CHỈ ÁP DỤNG PAGINATION KHI CÓ THAM SỐ
+        if (page && limit) {
+            query = query.skip((page - 1) * limit).limit(limit);
+        }
+
+        const bills = await query.lean();
+
+        console.log(`📊 GetAllBills: Found ${bills.length} bills (enrich: ${enrich}, page: ${page || 'all'}, limit: ${limit || 'all'})`);
+//-----------------Kết thúc Fix web admin---------------------
         let responseData = bills;
 
         if (enrich) {

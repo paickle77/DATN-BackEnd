@@ -51,9 +51,11 @@ router.get ('/account/:id',    accountCtrl.GetOne);
 // ——— CRUD cho Shipper ———
 router.get   ('/shippers',        shipperCtrl.getList);
 router.get   ('/shippers/:id',    shipperCtrl.GetOne);
+//------------------update Fix web admin---------------------
 router.get('/shippers/account/:account_id', shipperCtrl.getShipperByAccountId);
 router.put('/shippers/:id', shipperCtrl.Edit);
 router.post('/shippers/updateStatus', shipperCtrl.updateOnlineStatus);
+//-----------------Kết thúc Fix web admin---------------------
 
 //------------------update Fix web admin---------------------
 // Tạo shipper thường (web admin) - CẦN AUTH
@@ -107,7 +109,10 @@ router.get('/bills/admin/kpi',           api_auth, requireRole('admin'), billCtr
 router.get('/bills/admin/daily-revenue', api_auth, requireRole('admin'), billCtrl.getAdminDailyRevenue);
 //-----------------Kết thúc Fix web admin---------------------
 router.get   ('/bills',        billCtrl.getList);
-router.get   ('/GetAllBills',  billCtrl.GetAllBills); // tên viết hoa có thể đổi thành /bills/all cho chuẩn REST
+//------------------update Fix web admin---------------------
+router.get   ('/GetAllBills',  billCtrl.GetAllBillsSimple); // 📱 MOBILE COMPATIBILITY - Sử dụng function đơn giản
+router.get   ('/bills/enhanced', billCtrl.GetAllBills); // 🌐 WEB ADMIN - Function mới có enrich
+//-----------------Kết thúc Fix web admin---------------------
 router.get   ('/bills/:id',    billCtrl.GetOne);
 router.post  ('/bills',        billCtrl.Add);
 router.put   ('/bills/:id',    billCtrl.Edit);
@@ -116,7 +121,12 @@ router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
 router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
 router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
 router.post  ('/bills/cancel-by-customer', billCtrl.CancelOrderByCustomer); // ✅ Khách hàng hủy đơn
-router.post  ('/bills/process-refund',     billCtrl.ProcessRefund); // ✅ Admin xử lý hoàn tiền
+//------------------update Fix web admin---------------------
+router.post  ('/bills/process-refund',     billCtrl.ProcessRefund); // ✅ Admin xử lý hoàn tiền VNPay
+router.post  ('/bills/process-refund-management', billCtrl.ProcessRefundManagement); // 🔥 THÊM: API riêng cho RefundManagement JSX
+router.post  ('/payments/vnpay/refund',    require('../vnpay/vnpay.controller').processRefund); // 🔥 API hoàn tiền VNPay
+router.post  ('/payments/vnpay/query',     require('../vnpay/vnpay.controller').queryTransaction); // 🔥 API truy vấn VNPay
+//-----------------Kết thúc Fix web admin---------------------
 router.post  ('/bills/CreatePending',      billCtrl.CreatePendingBill); // COD only
 router.post  ('/bills/CreateAfterPayment', billCtrl.CreateBillAfterPayment); // ✅ Sau thanh toán online
 
