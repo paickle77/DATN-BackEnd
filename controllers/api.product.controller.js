@@ -370,18 +370,6 @@ const getProductAndCategoryName = async (req, res) => {
   }
 };
 
-const getProductAndIngredientName = async (req, res) => {
-  try {
-    const products = await Product.find({ is_active: true })
-      .populate('ingredient_id', 'name')
-      .exec();
-   
-    res.json({ msg: 'OK', data: products });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
 const getproductbyID = async (req, res) => {
   try {
     const products = await Product.findById(req.params.id)
@@ -419,6 +407,5 @@ module.exports = {
   GetListByCategory,
   SearchByName,
   getProductAndCategoryName,
-  getProductAndIngredientName,
   getproductbyID
 };
