@@ -1076,70 +1076,250 @@ userController.toggleCustomerLock = async (req, res) => {
 
 // ✅ GIỮ NGUYÊN TẤT CẢ CÁC HÀM KHÁC ĐỂ MOBILE APP KHÔNG BỊ ẢNH HƯỞNG
 
-//------------------update Fix web admin---------------------
-// ✅ THÊM: API CHỈ CHO WEB ADMIN - Lấy danh sách khách hàng kèm thông tin đầy đủ
+//------------------update Fix CustomerManagement web admin - sửa lỗi logic query---------------------
+// ✅ API CHỈ CHO WEB ADMIN - Lấy danh sách khách hàng kèm thông tin đầy đủ
 userController.getCustomersWithDetails = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '' } = req.query;
+    const { page = 1, limit = 20, search = '', role = 'user' } = req.query;
     
-    console.log('🔍 [WEB ADMIN] Lấy danh sách khách hàng:', { page, limit, search });
+    console.log('🔍 [WEB ADMIN] Lấy danh sách khách hàng với params:', { page, limit, search });
     
-    // Query users với account info
-    const users = await User.find()
-      .populate('account_id', 'email role is_lock provider created_at')
-      .sort({ created_at: -1 })
-      .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
-    
-    // Filter theo search term nếu có
-    let filteredUsers = users;
-    if (search) {
-      filteredUsers = users.filter(user => 
-        (user.name && user.name.toLowerCase().includes(search.toLowerCase())) ||
-        (user.phone && user.phone.includes(search)) ||
-        (user.account_id?.email && user.account_id.email.toLowerCase().includes(search.toLowerCase()))
-      );
-    }
-    
-    // Format data cho frontend
-    const customersData = filteredUsers.map(user => ({
-      _id: user._id,
-      name: user.name || 'Chưa cập nhật',
-      phone: user.phone || '',
-      email: user.account_id?.email || '',
-      provider: user.account_id?.provider || 'local',
-      is_lock: user.account_id?.is_lock || false,
-      created_at: user.account_id?.created_at || user.created_at,
-      display_avatar: user.display_avatar || '/default-avatar.png',
-      total_orders: 0, // Có thể tính từ bills nếu cần
-      total_spent: 0,  // Có thể tính từ bills nếu cần
-      address_detail: {
-        full_address: 'Chưa cập nhật' // Có thể join từ addresses nếu cần
-      }
-    }));
-    
-    const totalCustomers = await User.countDocuments();
-    const totalPages = Math.ceil(totalCustomers / parseInt(limit));
-    
+    const pipeline = [
+      // 1. 🔥 FIX: Chỉ lấy users có account với role = user (khách hàng)
+      {
+        $lookup: {
+          from: 'accounts',
+          localField: 'account_id',
+          foreignField: '_id',
+          as: 'account_info'
+        }
+      },
+      {
+        $unwind: {
+          path: '$account_info',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      // Filter chỉ lấy user role
+      {
+        $match: {
+          'account_info.role': 'user'
+        }
+      },
+      
+      // 2. 🔥 FIX: Join với addresses (lấy địa chỉ default)
+      {
+        $lookup: {
+          from: 'addresses',
+          localField: '_id',
+          foreignField: 'user_id',
+          as: 'addresses'
+        }
+      },
+      // Lấy địa chỉ default hoặc địa chỉ đầu tiên
+      {
+        $addFields: {
+          address_info: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$addresses',
+                  cond: { $eq: ['$$this.isDefault', true] }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      // Nếu không có default thì lấy địa chỉ đầu tiên
+      {
+        $addFields: {
+          address_info: {
+            $cond: {
+              if: { $eq: ['$address_info', null] },
+              then: { $arrayElemAt: ['$addresses', 0] },
+              else: '$address_info'
+            }
+          }
+        }
+      },
+      
+      // 3. 🔥 FIX: Join với bills (Bill.Account_id = User.account_id)
+      {
+        $lookup: {
+          from: 'bills',
+          let: { accountId: '$account_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$Account_id', '$$accountId'] },
+                status: { $ne: 'cancelled' }
+              }
+            },
+            { $sort: { created_at: -1 } }
+          ],
+          as: 'bills'
+        }
+      },
+      
+      // 4. Search filter (nếu có)
+      ...(search ? [{
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { phone: { $regex: search, $options: 'i' } },
+            { 'account_info.email': { $regex: search, $options: 'i' } }
+          ]
+        }
+      }] : []),
+      
+      // 5. Add computed fields
+      {
+        $addFields: {
+          // Thông tin từ account
+          email: '$account_info.email',
+          is_lock: { $ifNull: ['$account_info.is_lock', false] },
+          provider: { $ifNull: ['$account_info.provider', 'local'] },
+          account_role: { $ifNull: ['$account_info.role', 'user'] },
+          
+          // 🔥 FIX: Thông tin địa chỉ đầy đủ
+          address_detail: {
+            $cond: {
+              if: { $ne: ['$address_info', null] },
+              then: {
+                street: { $ifNull: ['$address_info.detail_address', ''] },
+                ward: { $ifNull: ['$address_info.ward', ''] },
+                district: { $ifNull: ['$address_info.district', ''] },
+                city: { $ifNull: ['$address_info.city', ''] },
+                full_address: {
+                  $trim: {
+                    input: {
+                      $concat: [
+                        { $ifNull: ['$address_info.detail_address', ''] },
+                        {
+                          $cond: {
+                            if: { $and: [{ $ne: ['$address_info.ward', null] }, { $ne: ['$address_info.ward', ''] }] },
+                            then: { $concat: [', ', { $ifNull: ['$address_info.ward', ''] }] },
+                            else: ''
+                          }
+                        },
+                        {
+                          $cond: {
+                            if: { $and: [{ $ne: ['$address_info.district', null] }, { $ne: ['$address_info.district', ''] }] },
+                            then: { $concat: [', ', { $ifNull: ['$address_info.district', ''] }] },
+                            else: ''
+                          }
+                        },
+                        {
+                          $cond: {
+                            if: { $and: [{ $ne: ['$address_info.city', null] }, { $ne: ['$address_info.city', ''] }] },
+                            then: { $concat: [', ', { $ifNull: ['$address_info.city', ''] }] },
+                            else: ''
+                          }
+                        }
+                      ]
+                    },
+                    chars: ', '
+                  }
+                }
+              },
+              else: null
+            }
+          },
+          
+          // Avatar với fallback
+          display_avatar: {
+            $cond: {
+              if: { $and: [{ $ne: ['$avatar', null] }, { $ne: ['$avatar', ''] }] },
+              then: '$avatar',
+              else: { 
+                $cond: {
+                  if: { $and: [{ $ne: ['$image', null] }, { $ne: ['$image', ''] }] },
+                  then: '$image',
+                  else: 'avatarmacdinh.png'
+                }
+              }
+            }
+          },
+          
+          // 🔥 FIX: Thống kê đơn hàng
+          total_orders: { $size: '$bills' },
+          total_spent: {
+            $sum: {
+              $map: {
+                input: '$bills',
+                as: 'bill', 
+                in: { $ifNull: ['$$bill.total', 0] }
+              }
+            }
+          },
+          
+          // Ngày đơn hàng cuối cùng
+          last_order_date: {
+            $cond: {
+              if: { $gt: [{ $size: '$bills' }, 0] },
+              then: { 
+                $arrayElemAt: [
+                  { $map: { input: '$bills', as: 'bill', in: '$$bill.created_at' } }, 
+                  0 
+                ]
+              },
+              else: null
+            }
+          }
+        }
+      },
+      
+      // 6. Remove unnecessary fields
+      {
+        $project: {
+          addresses: 0,
+          account_info: 0,
+          address_info: 0,
+          bills: 0,
+          password: 0,
+          otp: 0,
+          otpExpires: 0
+        }
+      },
+      
+      // 7. Sort by creation date
+      { $sort: { created_at: -1 } }
+    ];
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [customers, totalCount] = await Promise.all([
+      User.aggregate([...pipeline, { $skip: skip }, { $limit: parseInt(limit) }]),
+      User.aggregate([...pipeline, { $count: 'total' }])
+    ]);
+
+    const total = totalCount[0]?.total || 0;
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    console.log(`✅ [WEB ADMIN] Lấy ${customers.length}/${total} khách hàng với thông tin đầy đủ`);
+
     res.json({
       success: true,
-      message: 'Lấy danh sách khách hàng thành công',
       data: {
-        customers: customersData,
+        customers,
         pagination: {
           currentPage: parseInt(page),
           totalPages,
-          totalCustomers,
-          limit: parseInt(limit)
+          totalCount: total,
+          hasNext: parseInt(page) < totalPages,
+          hasPrev: parseInt(page) > 1
         }
       }
     });
-  } catch (error) {
-    console.error('❌ Lỗi getCustomersWithDetails:', error);
+
+  } catch (err) {
+    console.error('❌ [WEB ADMIN] Lỗi lấy danh sách khách hàng:', err);
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi lấy danh sách khách hàng',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
