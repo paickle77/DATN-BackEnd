@@ -291,17 +291,18 @@ router.put('/categories/:id', requireRole('admin'), categoryCtrl.Edit);
 router.delete('/categories/:id', requireRole('admin'), categoryCtrl.Delete);
 
 // ——— CRUD cho Products - ENHANCED ———
+//------------------update Fix Product routes - sửa lỗi tên function---------------------
 // ✅ WEB ADMIN SPECIFIC ROUTES (Đặt trước để tránh conflict)
 router.get('/products/with-sizes', productCtrl.getProductsWithSizes); // 🆕 Web admin endpoint
-router.get('/products/all/with-sizes', productCtrl.getAllProductsWithSizes); // 🆕 Enhanced version
+router.get('/products/all/with-sizes', productCtrl.getProductsWithSizes); // 🔥 FIX: đổi tên function đúng
 router.post('/products/:id/update-stock', productCtrl.updateStock); // 🆕 Web admin endpoint  
 router.post('/products/update-all-stock', productCtrl.updateAllStock); // 🆕 Web admin endpoint
+//-----------------Kết thúc Fix Product routes - sửa lỗi tên function---------------------
 
 // ✅ MOBILE COMPATIBLE ROUTES (Giữ nguyên thứ tự cũ)
 router.get('/products', productCtrl.getList);
 router.get('/productscategory', productCtrl.GetListByCategory);
 router.get('/productsandcategoryid', productCtrl.getProductAndCategoryName);
-router.get('/productsandintergradianID', productCtrl.getProductAndIngredientName);
 router.get('/products/categories/:id', productCtrl.GetListByCategory);
 router.get('/products/search', productCtrl.SearchByName);
 
