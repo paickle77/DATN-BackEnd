@@ -12,7 +12,6 @@ const aiController = {
     try {
       const products = await Product.find({ is_active: true })
         .populate('category_id', 'name description')
-        .populate('branch_id', 'name address')
         .populate('ingredient_id', 'name description')
         .select('name description price discount_price rating stock image_url');
       
@@ -29,7 +28,7 @@ const aiController = {
     
     const productContext = products.map(product => {
       const actualPrice = product.discount_price > 0 ? product.discount_price : product.price;
-      return `- ${product.name}: ${product.description || 'Không có mô tả'} - Giá: ${actualPrice.toLocaleString('vi-VN')}đ - Rating: ${product.rating}/5 - Còn lại: ${product.stock} - Danh mục: ${product.category_id?.name || 'Chưa phân loại'}`;
+  return `- ${product.name}: ${product.description || 'Không có mô tả'} - Giá: ${actualPrice.toLocaleString('vi-VN')}đ - Rating: ${product.rating}/5 - Còn lại: ${product.stock} - Danh mục: ${product.category_id?.name || 'Chưa phân loại'}`;
     }).join('\n');
 
     return `
@@ -87,8 +86,24 @@ PHONG CÁCH:
       const response = await result.response;
       const botReply = response.text();
 
-      // Tìm sản phẩm gợi ý dựa trên tin nhắn người dùng
-      const suggestedProducts = await aiController.findSuggestedProducts(message);
+      // Trích xuất tên sản phẩm từ câu trả lời AI
+      // Ví dụ: lấy các từ sau dấu ':' hoặc sau "bánh ..." hoặc tên trong ngoặc kép
+      let keyword = message;
+      const regexName = /bánh ([\w\s]+)/i;
+      const regexColon = /: ([\w\s]+)/;
+      const regexQuote = /"([^"]+)"/;
+      if (botReply) {
+        if (regexName.test(botReply)) {
+          keyword = botReply.match(regexName)[1].trim();
+        } else if (regexColon.test(botReply)) {
+          keyword = botReply.match(regexColon)[1].trim();
+        } else if (regexQuote.test(botReply)) {
+          keyword = botReply.match(regexQuote)[1].trim();
+        }
+      }
+
+      // Tìm sản phẩm gợi ý dựa trên keyword trích xuất từ câu trả lời AI
+      const suggestedProducts = await aiController.findSuggestedProducts(keyword);
 
       return res.json({
         success: true,
@@ -125,146 +140,93 @@ PHONG CÁCH:
 
   // Tìm sản phẩm gợi ý dựa trên từ khóa người dùng
   findSuggestedProducts: async (userMessage) => {
+      // Lấy danh sách sản phẩm trước khi xử lý
+      const products = await aiController.getProductsForAI();
+      // Nếu người dùng hỏi "chỉ muốn" một loại bánh cụ thể, chỉ trả về sản phẩm đúng loại đó
+      const onlyMatchRegex = /chỉ muốn ([\w\s]+)/i;
+      const onlyMatch = userMessage.match(onlyMatchRegex);
+      if (onlyMatch) {
+        const keyword = onlyMatch[1].trim().toLowerCase();
+        const strictProducts = products.filter(product => {
+          const productName = product.name.toLowerCase();
+          return productName.includes(keyword);
+        });
+        if (strictProducts.length > 0) {
+          return strictProducts.map(product => ({
+            id: product._id,
+            name: product.name,
+            description: product.description || '',
+            price: product.price,
+            discount_price: product.discount_price,
+            actual_price: product.discount_price > 0 ? product.discount_price : product.price,
+            image_url: product.image_url,
+            rating: product.rating || 0,
+            stock: product.stock || 0,
+            category: product.category_id,
+          }));
+        } else {
+          // Không tìm thấy đúng loại bánh
+          return [];
+        }
+      }
     try {
       const products = await aiController.getProductsForAI();
       console.log(`🔍 Tìm kiếm sản phẩm cho: "${userMessage}"`);
       console.log(`📦 Tổng số sản phẩm có sẵn: ${products.length}`);
-      
-      if (products.length === 0) {
-        return [];
-      }
+      if (products.length === 0) return [];
 
       const message = userMessage.toLowerCase();
       let filteredProducts = [];
 
-      // 1. Tìm kiếm chính xác theo tên sản phẩm
-      const exactMatches = products.filter(product => {
+      // Tìm kiếm chính xác theo tên sản phẩm
+      const nameMatches = products.filter(product => {
         const productName = product.name.toLowerCase();
-        const productDesc = (product.description || '').toLowerCase();
-        
-        // Tách từ khóa từ tin nhắn người dùng
-        const messageWords = message.split(/\s+/);
-        
-        // Kiểm tra nếu tên sản phẩm chứa từ khóa hoặc ngược lại
-        const isMatch = messageWords.some(word => 
-          word.length > 2 && (
-            productName.includes(word) || 
-            productDesc.includes(word) ||
-            word.includes(productName.split(' ')[0]) // Kiểm tra từ đầu tiên của tên sản phẩm
-          )
-        ) || messageWords.join(' ').includes(productName);
-        
-        if (isMatch) {
-          console.log(`✅ Exact match: ${product.name}`);
-        }
-        
-        return isMatch;
+        return productName.includes(message);
       });
 
-      console.log(`🎯 Exact matches found: ${exactMatches.length}`);
+      // Tìm kiếm theo danh mục
+      const categoryMatches = products.filter(product => {
+        const categoryName = (product.category_id?.name || '').toLowerCase();
+        return categoryName.includes(message);
+      });
 
-      if (exactMatches.length > 0) {
-        filteredProducts = exactMatches;
-      } else {
-        // 2. Tìm kiếm mở rộng dựa trên danh mục và thành phần
-        const expandedMatches = products.filter(product => {
-          const productName = product.name.toLowerCase();
-          const productDesc = (product.description || '').toLowerCase();
-          const categoryName = (product.category_id?.name || '').toLowerCase();
-          
-          // Từ khóa mở rộng
-          const keywords = {
-            cake: ['bánh', 'cake', 'gato'],
-            cream: ['kem', 'cream'],
-            chocolate: ['socola', 'chocolate', 'choco'],
-            tiramisu: ['tiramisu', 'mascarpone'],
-            cupcake: ['cupcake', 'bánh nướng'],
-            fruit: ['trái cây', 'cam', 'dâu', 'fruit', 'orange'],
-            birthday: ['sinh nhật', 'birthday'],
-            sweet: ['ngọt', 'sweet', 'dessert'],
-            test: ['test', 'thử nghiệm', '2222', 'ngon']
-          };
-
-          // Kiểm tra từng nhóm từ khóa
-          for (const [category, words] of Object.entries(keywords)) {
-            if (words.some(word => message.includes(word))) {
-              if (productName.includes(category) || 
-                  productDesc.includes(category) ||
-                  categoryName.includes(category) ||
-                  words.some(w => productName.includes(w) || productDesc.includes(w))) {
-                console.log(`🔍 Expanded match: ${product.name} (category: ${category})`);
-                return true;
-              }
-            }
-          }
-
-          return false;
-        });
-
-        console.log(`🎯 Expanded matches found: ${expandedMatches.length}`);
-
-        if (expandedMatches.length > 0) {
-          filteredProducts = expandedMatches;
+      // Tìm kiếm theo thành phần
+      const ingredientMatches = products.filter(product => {
+        if (!product.ingredient_id) return false;
+        if (Array.isArray(product.ingredient_id)) {
+          return product.ingredient_id.some(ing => (ing.name || '').toLowerCase().includes(message));
         } else {
-          // 3. Nếu vẫn không tìm thấy, sử dụng tìm kiếm fuzzy (mờ)
-          const fuzzyMatches = products.filter(product => {
-            const productName = product.name.toLowerCase();
-            const productDesc = (product.description || '').toLowerCase();
-            
-            // Tách từ từ tin nhắn và kiểm tra độ tương tự
-            const messageWords = message.replace(/[^\w\s]/gi, '').split(/\s+/);
-            const isMatch = messageWords.some(word => {
-              if (word.length < 3) return false;
-              
-              // Kiểm tra substring
-              return productName.includes(word.substring(0, 3)) || 
-                     productDesc.includes(word.substring(0, 3)) ||
-                     word.includes(productName.substring(0, 3));
-            });
-            
-            if (isMatch) {
-              console.log(`🔍 Fuzzy match: ${product.name}`);
-            }
-            
-            return isMatch;
-          });
-
-          console.log(`🎯 Fuzzy matches found: ${fuzzyMatches.length}`);
-
-          if (fuzzyMatches.length > 0) {
-            filteredProducts = fuzzyMatches;
-          }
+          return (product.ingredient_id.name || '').toLowerCase().includes(message);
         }
+      });
+
+      // Gom kết quả, ưu tiên theo thứ tự: tên > danh mục > thành phần
+      filteredProducts = [...nameMatches, ...categoryMatches, ...ingredientMatches];
+
+      // Nếu vẫn không có kết quả, thử tìm kiếm từng từ trong câu hỏi
+      if (filteredProducts.length === 0) {
+        const messageWords = message.split(/\s+/).filter(w => w.length > 2);
+        filteredProducts = products.filter(product => {
+          const productName = product.name.toLowerCase();
+          const categoryName = (product.category_id?.name || '').toLowerCase();
+          const desc = (product.description || '').toLowerCase();
+          return messageWords.some(word =>
+            productName.includes(word) ||
+            categoryName.includes(word) ||
+            desc.includes(word)
+          );
+        });
       }
 
-      // 4. Nếu vẫn không có kết quả, trả về sản phẩm phổ biến
+      // Nếu vẫn không có, trả về top sản phẩm phổ biến
       if (filteredProducts.length === 0) {
-        console.log(`📦 Không tìm thấy sản phẩm phù hợp, trả về top sản phẩm`);
-        filteredProducts = products
-          .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-          .slice(0, 3);
-      } else {
-        // Sắp xếp theo độ phù hợp: rating cao và tên gần giống nhất
-        filteredProducts = filteredProducts
-          .sort((a, b) => {
-            // Ưu tiên sản phẩm có tên chứa từ khóa chính xác hơn
-            const aNameMatch = a.name.toLowerCase().includes(message.split(' ')[0]);
-            const bNameMatch = b.name.toLowerCase().includes(message.split(' ')[0]);
-            
-            if (aNameMatch && !bNameMatch) return -1;
-            if (!aNameMatch && bNameMatch) return 1;
-            
-            // Sau đó sắp xếp theo rating
-            return (b.rating || 0) - (a.rating || 0);
-          })
-          .slice(0, 3);
+        filteredProducts = products.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3);
       }
 
       // Loại bỏ sản phẩm trùng lặp
       const uniqueProducts = filteredProducts.filter((product, index, self) => 
         index === self.findIndex(p => p._id.toString() === product._id.toString())
       );
-
       console.log(`🎉 Kết quả cuối cùng: ${uniqueProducts.length} sản phẩm`);
       uniqueProducts.forEach(p => console.log(`   - ${p.name}`));
 
@@ -279,7 +241,6 @@ PHONG CÁCH:
         rating: product.rating || 0,
         stock: product.stock || 0,
         category: product.category_id,
-        branch: product.branch_id
       }));
 
     } catch (error) {
@@ -332,7 +293,6 @@ PHONG CÁCH:
       
       const product = await Product.findById(product_id)
         .populate('category_id', 'name description')
-        .populate('branch_id', 'name address phone')
         .populate('ingredient_id', 'name description');
 
       if (!product) {
@@ -355,7 +315,6 @@ PHONG CÁCH:
           rating: product.rating,
           stock: product.stock,
           category: product.category_id,
-          branch: product.branch_id,
           ingredients: product.ingredient_id
         }
       });

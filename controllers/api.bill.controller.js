@@ -175,7 +175,7 @@ module.exports.CreatePendingBill = async (req, res) => {
     }
 
     // 1️⃣ Tạo hóa đơn với status pending
-    const bill = await Bill.create({
+    const billData = {
       Account_id,
       address_id,
       shipping_method,
@@ -184,12 +184,15 @@ module.exports.CreatePendingBill = async (req, res) => {
       total,
       discount_amount,
       voucher_code,
-      voucher_user_id, // ✅ Lưu voucher_user_id
       note,
       shipping_fee,
       address_snapshot: req.body.address_snapshot || {},
       status: 'pending'
-    });
+    };
+    if (voucher_user_id) {
+      billData.voucher_user_id = voucher_user_id;
+    }
+    const bill = await Bill.create(billData);
 
     // 1.5️⃣ Nếu có voucher, đánh dấu voucher đang sử dụng
     if (voucher_user_id) {
@@ -335,7 +338,7 @@ module.exports.CreateBillAfterPayment = async (req, res) => {
     }
 
     // 1️⃣ Tạo hóa đơn với status pending (chờ admin xác nhận)
-    const bill = await Bill.create({
+    const billData = {
       Account_id,
       address_id,
       shipping_method,
@@ -344,14 +347,17 @@ module.exports.CreateBillAfterPayment = async (req, res) => {
       total,
       discount_amount,
       voucher_code,
-      voucher_user_id, // ✅ Lưu voucher_user_id
       note,
       shipping_fee,
       address_snapshot: req.body.address_snapshot || {},
       status: 'pending',
       payment_confirmed_at: new Date(),
       payment_transaction: payment_transaction || null
-    });
+    };
+    if (voucher_user_id) {
+      billData.voucher_user_id = voucher_user_id;
+    }
+    const bill = await Bill.create(billData);
 
     // 1.5️⃣ Nếu có voucher, đánh dấu voucher đang sử dụng
     if (voucher_user_id) {
@@ -1190,7 +1196,7 @@ module.exports.StartShipping = async (req, res) => {
 // Complete Order
 module.exports.CompleteOrder = async (req, res) => {
     try {
-        const { orderId, shipperId } = req.body;
+        const { orderId, shipperId, proofImage } = req.body;
 
         if (!orderId || !shipperId) {
             return res.status(400).json({ 
@@ -1231,6 +1237,7 @@ module.exports.CompleteOrder = async (req, res) => {
         // Cập nhật trạng thái
         bill.status = 'done';
         bill.delivered_at = new Date();
+        bill.proof_images = proofImage;
         await bill.save();
 
         // Lấy thông tin shipper để trả về
@@ -1256,7 +1263,7 @@ module.exports.CompleteOrder = async (req, res) => {
 // Cancel Order
 module.exports.CancelOrder = async (req, res) => {
     try {
-        const { orderId, shipperId } = req.body;
+        const { orderId, shipperId, proofImage } = req.body;
 
         if (!orderId || !shipperId) {
             return res.status(400).json({ 
@@ -1290,6 +1297,7 @@ module.exports.CancelOrder = async (req, res) => {
         // Cập nhật trạng thái
         bill.status = 'cancelled';
         bill.cancelled_at = new Date();
+        bill.proof_images = proofImage;
         await bill.save();
 
         res.json({ 
