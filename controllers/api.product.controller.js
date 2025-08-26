@@ -39,8 +39,7 @@ const Add = async (req, res) => {
       batch_number: req.body.batch_number ? req.body.batch_number.trim() : undefined,
       expiry_date: req.body.expiry_date ? new Date(req.body.expiry_date) : undefined,
       
-      // ✅ Mobile app compatibility fields
-      ingredient_id: req.body.ingredient_id || req.body.ingredient_ids || []
+      
     };
 
     const obj = new Product(productData);
@@ -361,21 +360,8 @@ const getProductAndCategoryName = async (req, res) => {
   try {
     const products = await Product.find({ is_active: true })
       .populate('category_id', 'name')
-      .populate('ingredient_id', 'name')
       .exec();
      
-    res.json({ msg: 'OK', data: products });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-const getProductAndIngredientName = async (req, res) => {
-  try {
-    const products = await Product.find({ is_active: true })
-      .populate('ingredient_id', 'name')
-      .exec();
-   
     res.json({ msg: 'OK', data: products });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -419,6 +405,5 @@ module.exports = {
   GetListByCategory,
   SearchByName,
   getProductAndCategoryName,
-  getProductAndIngredientName,
   getproductbyID
 };

@@ -122,6 +122,7 @@ router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
 router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
 router.post  ('/bills/cancel-by-customer', billCtrl.CancelOrderByCustomer); // ✅ Khách hàng hủy đơn
 //------------------update Fix web admin---------------------
+router.get   ('/bills/check-cod-eligibility/:accountId', billCtrl.CheckCODEligibility); // ✅ Kiểm tra COD eligibility
 router.post  ('/bills/process-refund',     billCtrl.ProcessRefund); // ✅ Admin xử lý hoàn tiền VNPay
 router.post  ('/bills/process-refund-management', billCtrl.ProcessRefundManagement); // 🔥 THÊM: API riêng cho RefundManagement JSX
 router.post  ('/payments/vnpay/refund',    require('../vnpay/vnpay.controller').processRefund); // 🔥 API hoàn tiền VNPay
@@ -209,7 +210,7 @@ router.delete('/notifications/delete-all-read/:userId', notificationCtrl.deleteA
 router.get('/notifications/:id', notificationCtrl.GetOne);
 router.post('/notifications', notificationCtrl.Add);
 //------------------update Fix web admin---------------------
-router.put('/notifications/:id/mark-read', api_auth, notificationCtrl.markAsRead); // Thêm auth để có thông tin user
+router.put('/notifications/:id/mark-read', notificationCtrl.markAsRead); // Bỏ auth requirement
 //-----------------Kết thúc Fix web admin---------------------
 //------------------update Fix web admin---------------------
 router.put('/notifications/:id', api_auth, notificationCtrl.Edit); // Thêm auth để có thông tin user
@@ -301,7 +302,6 @@ router.post('/products/update-all-stock', productCtrl.updateAllStock); // 🆕 W
 router.get('/products', productCtrl.getList);
 router.get('/productscategory', productCtrl.GetListByCategory);
 router.get('/productsandcategoryid', productCtrl.getProductAndCategoryName);
-router.get('/productsandintergradianID', productCtrl.getProductAndIngredientName);
 router.get('/products/categories/:id', productCtrl.GetListByCategory);
 router.get('/products/search', productCtrl.SearchByName);
 

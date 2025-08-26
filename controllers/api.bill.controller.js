@@ -84,6 +84,51 @@ async function validateVoucherForOrder(voucherUserId, orderTotal) {
 }
 
 //------------------update Fix web admin---------------------
+// GET /CheckCODEligibility - Kiểm tra xem user có được phép chọn COD không
+module.exports.CheckCODEligibility = async (req, res) => {
+  try {
+    const { accountId } = req.params;
+
+    if (!accountId) {
+      return res.status(400).json({ 
+        msg: 'Thiếu Account ID', 
+        canUseCOD: false 
+      });
+    }
+
+    // Kiểm tra xem user có đơn hàng nào bị returned (hoàn về) với COD không
+    const returnedCODOrders = await Bill.find({
+      Account_id: accountId,
+      payment_method: { $regex: /cod|tiền mặt|khi nhận/i }, // Flexible matching for COD
+      status: { $in: ['returned', 'failed'] } // Cả returned và failed đều coi như "boom hàng"
+    });
+
+    const canUseCOD = returnedCODOrders.length === 0;
+
+    console.log(`🔍 CheckCODEligibility for account ${accountId}:`, {
+      returnedCODCount: returnedCODOrders.length,
+      canUseCOD: canUseCOD
+    });
+
+    res.json({
+      msg: 'OK',
+      canUseCOD: canUseCOD,
+      returnedOrdersCount: returnedCODOrders.length,
+      message: canUseCOD 
+        ? 'Được phép sử dụng thanh toán COD'
+        : 'Không được phép sử dụng COD do đã có lịch sử từ chối nhận hàng'
+    });
+
+  } catch (error) {
+    console.error('❌ Lỗi kiểm tra COD eligibility:', error);
+    res.status(500).json({ 
+      msg: 'Lỗi server', 
+      error: error.message,
+      canUseCOD: false 
+    });
+  }
+};
+
 // GET /GetAllBills - Simple version without enrichment
 module.exports.GetAllBillsSimple = async (req, res) => {
 //-----------------Kết thúc Fix web admin---------------------
@@ -149,7 +194,35 @@ module.exports.CreatePendingBill = async (req, res) => {
       return res.status(400).json({ msg: 'Thiếu dữ liệu bắt buộc' });
     }
 
-    // 🔍 Validate voucher trước khi tạo đơn hàng COD
+    // � KIỂM TRA COD ELIGIBILITY - Chặn user từng boom hàng
+    const paymentMethodLower = payment_method.toLowerCase();
+    const isCOD = paymentMethodLower.includes('cod') || 
+                  paymentMethodLower.includes('tiền mặt') || 
+                  paymentMethodLower.includes('khi nhận');
+
+    if (isCOD) {
+      console.log('🔍 Kiểm tra COD eligibility cho Account_id:', Account_id);
+      
+      // Kiểm tra lịch sử đơn hàng bị returned/failed với COD
+      const returnedCODOrders = await Bill.find({
+        Account_id: Account_id,
+        payment_method: { $regex: /cod|tiền mặt|khi nhận/i },
+        status: { $in: ['returned', 'failed'] }
+      });
+
+      if (returnedCODOrders.length > 0) {
+        console.log('❌ User đã có lịch sử boom hàng COD:', returnedCODOrders.length, 'đơn');
+        return res.status(403).json({ 
+          msg: 'Bạn đã từng từ chối nhận hàng khi chọn thanh toán khi nhận. Từ lần này, vui lòng thanh toán Online để tiếp tục mua hàng.',
+          error: 'COD_BLOCKED',
+          returnedOrdersCount: returnedCODOrders.length
+        });
+      }
+      
+      console.log('✅ User được phép sử dụng COD');
+    }
+
+    // �🔍 Validate voucher trước khi tạo đơn hàng COD
     if (voucher_user_id) {
       console.log('🎫 Validating voucher for COD order...');
       const voucherValidation = await validateVoucherForOrder(voucher_user_id, original_total);
@@ -166,7 +239,6 @@ module.exports.CreatePendingBill = async (req, res) => {
     }
 
     // ✅ CHỈ cho phép COD tạo đơn ngay
-    const paymentMethodLower = payment_method.toLowerCase();
     if (paymentMethodLower.includes('vnpay') || 
         paymentMethodLower.includes('momo') || 
         paymentMethodLower.includes('zalopay') ||

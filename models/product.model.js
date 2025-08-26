@@ -41,11 +41,7 @@ const ProductSchema = new mongoose.Schema({
     min: 0
   },
   
-  // ✅ Giữ nguyên để tương thích với mobile app
-  ingredient_id: [{ 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Ingredient' 
-  }],
+
   category_id: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Category',

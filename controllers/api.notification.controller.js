@@ -71,29 +71,15 @@ controller.markAsRead = async (req, res) => {
     const { id } = req.params;
     console.log('Marking notification as read:', id);
 
-//------------------update Fix web admin---------------------
-    // Kiểm tra quyền của user
-    const user = req.user || req.account;
-    const userRole = user?.role || 'user';
-    
-    let query = { _id: id };
-    
-    // User thường chỉ được đánh dấu thông báo của chính mình
-    if (userRole !== 'admin') {
-      const userId = user?.id || user?._id?.toString();
-      query.user_id = userId;
-    }
-    // Admin có thể đánh dấu mọi thông báo
-//-----------------Kết thúc Fix web admin---------------------
-    
-    const notification = await Notification.findOneAndUpdate(
-      query,
+    // Đánh dấu đã đọc mà không check quyền
+    const notification = await Notification.findByIdAndUpdate(
+      id,
       { is_read: true },
       { new: true }
     );
 
     if (!notification) {
-      return res.status(404).json({ msg: 'Không tìm thấy thông báo hoặc không có quyền', data: null });
+      return res.status(404).json({ msg: 'Không tìm thấy thông báo', data: null });
     }
 
     res.json({ msg: 'Đã đánh dấu đã đọc', data: notification });
