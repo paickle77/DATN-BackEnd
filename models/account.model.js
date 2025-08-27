@@ -16,6 +16,29 @@ const AccountSchema = new mongoose.Schema({
   facebook_id: { type: String, default: null },
   otp:         { type: String, default: null },
   otpExpires:  { type: Date, default: null },
+  
+  // ✅ MULTI-DEVICE: Array để lưu nhiều refresh token (mỗi thiết bị 1 token)
+  refresh_tokens: [{
+    token_hash: { type: String, required: true },           // Hash SHA256 của refresh token (bảo mật - không lưu plaintext)
+    expires_at: { type: Date, required: true },             // Thời điểm hết hạn của token này (7 ngày user, 1 ngày admin)
+    device_info: { type: String, default: null },           // Thông tin thiết bị: "iPhone 14", "Chrome/Windows" (để admin xem user đăng nhập ở đâu)
+    ip_address: { type: String, default: null },            // IP address đăng nhập (phát hiện login từ địa điểm lạ)
+    created_at: { type: Date, default: Date.now },          // Thời điểm tạo token này (audit trail)
+    last_used: { type: Date, default: Date.now }            // Lần cuối sử dụng token (để xóa token không dùng)
+  }],
+  
+  // ✅ BẢOMẬT: Thông tin security tracking - Theo dõi hoạt động đăng nhập
+  last_login_ip: { type: String, default: null },           // IP đăng nhập gần nhất (so sánh với lần trước để phát hiện bất thường)
+  last_login_device: { type: String, default: null },       // Thiết bị đăng nhập gần nhất (theo dõi pattern sử dụng)
+  last_login_at: { type: Date, default: null },             // Thời điểm đăng nhập cuối (tìm user không hoạt động lâu)
+  
+  // ✅ BRUTE FORCE PROTECTION: Chống tấn công brute force - Tự động khóa khi nhập sai nhiều
+  login_attempts: { type: Number, default: 0 },             // Số lần nhập sai mật khẩu liên tiếp (reset về 0 khi login thành công)
+  locked_until: { type: Date, default: null },              // Thời điểm mở khóa tài khoản (admin 30 phút, user 15 phút)
+  
+  // ✅ SUSPICIOUS ACTIVITY: Theo dõi hoạt động đáng ngờ - Admin cần review
+  suspicious_login_count: { type: Number, default: 0 },     // Số lần đăng nhập đáng ngờ (IP lạ, thiết bị lạ, thời gian lạ)
+  last_suspicious_ip: { type: String, default: null },      // IP đáng ngờ gần nhất (để admin block nếu cần)
 }, {
   collection: 'accounts',
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }

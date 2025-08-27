@@ -36,6 +36,9 @@ const voucherUserAdminCtrl = require('../controllers/api.voucherUserAdmin.contro
 // 1️⃣ Các route public (không cần token)
 router.post('/login', authCtrl.login);
 router.post('/register', authCtrl.register);
+// ✅ THÊM: Refresh token và logout routes
+router.post('/refresh-token', authCtrl.refreshToken);
+router.post('/logout', authCtrl.logout);
 
 // Password reset routes (public)
 router.post('/send-otp', accountCtrl.sendOTP);             // Gửi OTP reset password

@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const AccountModel = require('../models/account.model');
+const JWTUtils = require('../utils/jwt.utils'); // ✅ THÊM: Import JWT utils
 require('dotenv').config();
 
 const api_auth = async (req, res, next) => {
@@ -10,7 +11,8 @@ const api_auth = async (req, res, next) => {
 
   const token = header.replace('Bearer ', '');
   try {
-    const payload = jwt.verify(token, process.env.TOKEN_SEC_KEY);
+    // ✅ SỬA: Sử dụng JWTUtils để verify access token
+    const payload = JWTUtils.verifyAccessToken(token);
 
     const account = await AccountModel.findById(payload._id);
     if (!account) throw new Error('Không tìm thấy tài khoản');
@@ -23,6 +25,16 @@ const api_auth = async (req, res, next) => {
     next();
   } catch (err) {
     console.error(err);
+    
+    // ✅ THÊM: Phân biệt lỗi token hết hạn và lỗi khác
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        error: 'Access token đã hết hạn', 
+        code: 'TOKEN_EXPIRED',
+        message: 'Vui lòng sử dụng refresh token để lấy token mới'
+      });
+    }
+    
     res.status(401).json({ error: err.message });
   }
 };
