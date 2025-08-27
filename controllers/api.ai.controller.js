@@ -11,7 +11,6 @@ const aiController = {
     try {
       const products = await Product.find({ is_active: true })
         .populate('category_id', 'name description')
-        .populate('ingredient_id', 'name description')
         .select('name description price discount_price rating stock image_url');
       
       return products;
@@ -189,18 +188,9 @@ PHONG CÁCH:
         return categoryName.includes(message);
       });
 
-      // Tìm kiếm theo thành phần
-      const ingredientMatches = products.filter(product => {
-        if (!product.ingredient_id) return false;
-        if (Array.isArray(product.ingredient_id)) {
-          return product.ingredient_id.some(ing => (ing.name || '').toLowerCase().includes(message));
-        } else {
-          return (product.ingredient_id.name || '').toLowerCase().includes(message);
-        }
-      });
 
       // Gom kết quả, ưu tiên theo thứ tự: tên > danh mục > thành phần
-      filteredProducts = [...nameMatches, ...categoryMatches, ...ingredientMatches];
+      filteredProducts = [...nameMatches, ...categoryMatches, ...filteredProducts];
 
       // Nếu vẫn không có kết quả, thử tìm kiếm từng từ trong câu hỏi
       if (filteredProducts.length === 0) {
@@ -292,7 +282,6 @@ PHONG CÁCH:
       
       const product = await Product.findById(product_id)
         .populate('category_id', 'name description')
-        .populate('ingredient_id', 'name description');
 
       if (!product) {
         return res.status(404).json({
@@ -314,7 +303,6 @@ PHONG CÁCH:
           rating: product.rating,
           stock: product.stock,
           category: product.category_id,
-          ingredients: product.ingredient_id
         }
       });
 
