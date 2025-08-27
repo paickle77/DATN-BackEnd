@@ -123,6 +123,7 @@ router.delete('/bills/:id',    billCtrl.Delete);
 router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
 router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
 router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
+router.post  ('/bills/FailedOrder',       billCtrl.FailedOrder);
 router.post  ('/bills/cancel-by-customer', billCtrl.CancelOrderByCustomer); // ✅ Khách hàng hủy đơn
 //------------------update Fix web admin---------------------
 router.get   ('/bills/check-cod-eligibility/:accountId', billCtrl.CheckCODEligibility); // ✅ Kiểm tra COD eligibility
