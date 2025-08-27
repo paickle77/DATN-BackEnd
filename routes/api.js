@@ -107,6 +107,8 @@ router.delete('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.Delet
 //------------------update Fix web admin---------------------
 router.get('/bills/admin/kpi',           api_auth, requireRole('admin'), billCtrl.getAdminKPI);
 router.get('/bills/admin/daily-revenue', api_auth, requireRole('admin'), billCtrl.getAdminDailyRevenue);
+router.get('/bills/admin/top-customers', api_auth, requireRole('admin'), billCtrl.getTopCustomers);
+router.get('/bills/admin/top-products',  api_auth, requireRole('admin'), billCtrl.getTopProducts);
 //-----------------Kết thúc Fix web admin---------------------
 router.get   ('/bills',        billCtrl.getList);
 //------------------update Fix web admin---------------------
