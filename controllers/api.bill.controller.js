@@ -746,7 +746,7 @@ module.exports.CancelOrderByCustomer = async (req, res) => {
     
 //------------------update Fix web admin---------------------
     // ✅ Kiểm tra xem đơn hàng đã thanh toán online chưa
-    const isVNPayPayment = bill.payment_method === 'vnpay' && bill.payment_status === 'paid';
+    
 
     let updateData = {
       cancelled_at: new Date(),
@@ -754,7 +754,7 @@ module.exports.CancelOrderByCustomer = async (req, res) => {
     };
 
     // Nếu đã thanh toán VNPay thì chuyển sang refund_pending
-    if (isVNPayPayment) {
+    if (bill.payment_method === 'vnpay' || bill.payment_method === 'VNPAY - Sandbox') {
       updateData.status = 'refund_pending';
       updateData.refund_requested_at = new Date();
       updateData.refund_amount = bill.total;

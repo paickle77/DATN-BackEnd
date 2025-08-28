@@ -177,13 +177,15 @@ module.exports.updateOnlineStatus = async (req, res) => {
   try {
     const { _id, is_online } = req.body;
 
-    if (!_id || typeof is_online !== 'string' || !['offline', 'online', 'busy'].includes(is_online)) {
-      return res.status(400).json({ message: 'Thiếu account_id hoặc is_online không hợp lệ' });
+    const validStatuses = ['true', 'false', 'busy'];
+    if (!_id || !validStatuses.includes(is_online)) {
+      return res.status(400).json({ message: 'is_online không hợp lệ' });
     }
 
+    const normalizedStatus = String(is_online); // ép về string
     const updated = await Shipper.findOneAndUpdate(
       { _id },
-      { is_online },
+      { is_online: normalizedStatus },
       { new: true }
     );
 
