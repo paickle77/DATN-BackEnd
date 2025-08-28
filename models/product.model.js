@@ -180,6 +180,7 @@ ProductSchema.statics.searchByName = function(searchTerm) {
   });
 };
 
+//------------------update Fix Product validation - sửa lỗi ngày hết hạn---------------------
 // ✅ Pre-save middleware để validation
 ProductSchema.pre('save', function(next) {
   // Validate discount price không được lớn hơn price
@@ -187,12 +188,21 @@ ProductSchema.pre('save', function(next) {
     return next(new Error('Discount price cannot be greater than regular price'));
   }
   
-  // Validate expiry date không được trong quá khứ (chỉ khi tạo mới)
-  if (this.isNew && this.expiry_date && this.expiry_date < new Date()) {
-    return next(new Error('Expiry date cannot be in the past'));
+  // 🔥 FIX: Validate expiry date không được trong quá khứ (so sánh chỉ ngày, không so sánh giờ)
+  if (this.isNew && this.expiry_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset giờ về 00:00:00
+    
+    const expiryDate = new Date(this.expiry_date);
+    expiryDate.setHours(0, 0, 0, 0); // Reset giờ về 00:00:00
+    
+    if (expiryDate < today) {
+      return next(new Error('Expiry date cannot be in the past'));
+    }
   }
   
   next();
 });
+//-----------------Kết thúc Fix Product validation - sửa lỗi ngày hết hạn---------------------
 
 module.exports = mongoose.model('Product', ProductSchema);

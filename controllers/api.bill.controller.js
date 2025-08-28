@@ -14,6 +14,171 @@ const voucherUserController = require('./api.voucher_user.controller'); // ✅ I
 
 module.exports = Base(Bill);
 
+// 🔥 HELPER FUNCTION: Kiểm tra đơn hàng có phải "Nhận tại cửa hàng" không
+module.exports.CheckPickupOrder = async (req, res) => {
+  try {
+    const billId = req.params.id;
+    
+    const bill = await Bill.findById(billId);
+    if (!bill) {
+      return res.status(404).json({ 
+        success: false,
+        msg: 'Hóa đơn không tồn tại', 
+        data: null 
+      });
+    }
+
+    const currentShippingMethod = bill.shipping_method;
+    const isPickupOrder = currentShippingMethod === 'pickup' || 
+                         currentShippingMethod === 'Nhận tại cửa hàng' ||
+                         currentShippingMethod?.toLowerCase().includes('pickup') ||
+                         currentShippingMethod?.toLowerCase().includes('nhận tại');
+
+    // Xác định next actions cho từng trạng thái
+    let nextActions = [];
+    
+    if (isPickupOrder) {
+      if (bill.status === 'pending') {
+        nextActions = ['confirmed']; // Có thể xác nhận
+      } else if (bill.status === 'confirmed') {
+        nextActions = ['done']; // Có thể hoàn thành trực tiếp (bỏ qua ready)
+      }
+    } else {
+      // Đơn giao hàng bình thường
+      if (bill.status === 'pending') {
+        nextActions = ['confirmed'];
+      } else if (bill.status === 'confirmed') {
+        nextActions = ['ready']; // Phải qua chuẩn bị xong
+      } else if (bill.status === 'ready') {
+        nextActions = ['shipping']; // Chuyển sang giao hàng
+      }
+    }
+
+    res.json({ 
+      success: true,
+      data: {
+        billId: bill._id,
+        currentStatus: bill.status,
+        shippingMethod: currentShippingMethod,
+        isPickupOrder,
+        nextActions,
+        canCompleteDirectly: isPickupOrder && bill.status === 'confirmed'
+      }
+    });
+
+  } catch (err) {
+    console.error('❌ CheckPickupOrder error:', err);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Lỗi server: ' + err.message, 
+      data: null 
+    });
+  }
+};
+
+// 🔥 THÊM FUNCTION MỚI: Cập nhật trạng thái đặc biệt cho đơn "Nhận tại cửa hàng"
+module.exports.UpdateBillStatusForPickup = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const billId = req.params.id;
+
+    console.log('🏪 UpdateBillStatusForPickup called:', {
+      billId: billId.slice(-8),
+      newStatus: status
+    });
+
+    const bill = await Bill.findById(billId);
+    if (!bill) {
+      return res.status(404).json({ 
+        success: false,
+        msg: 'Hóa đơn không tồn tại', 
+        data: null 
+      });
+    }
+
+    // Kiểm tra phương thức giao hàng
+    const currentShippingMethod = bill.shipping_method;
+    const isPickupOrder = currentShippingMethod === 'pickup' || 
+                         currentShippingMethod === 'Nhận tại cửa hàng' ||
+                         currentShippingMethod?.toLowerCase().includes('pickup') ||
+                         currentShippingMethod?.toLowerCase().includes('nhận tại');
+
+    console.log('🏪 Pickup order validation:', {
+      shippingMethod: currentShippingMethod,
+      isPickupOrder,
+      currentStatus: bill.status,
+      newStatus: status
+    });
+
+    // 🔥 XỬ LÝ ĐƂC BIỆT CHO ĐƠN NHẬN TẠI CỬA HÀNG
+    if (isPickupOrder) {
+      if (bill.status === 'confirmed' && status === 'done') {
+        // ✅ Cho phép chuyển trực tiếp từ "Đã xác nhận" → "Hoàn thành" cho đơn nhận tại cửa hàng
+        console.log('🏪 ✅ Pickup order: confirmed → done (complete at store)');
+        
+        const updated = await Bill.findByIdAndUpdate(
+          billId,
+          { 
+            status: 'done',
+            completed_at: new Date(),
+            completion_method: 'pickup_at_store',
+            admin_note: req.body.admin_note || 'Khách đã nhận hàng tại cửa hàng'
+          },
+          { new: true, runValidators: true }
+        );
+
+        return res.json({ 
+          success: true,
+          msg: '✅ Đã hoàn thành đơn nhận tại cửa hàng', 
+          data: updated,
+          pickup_completed: true
+        });
+      } else if (bill.status === 'pending' && status === 'confirmed') {
+        // ✅ Cho phép chuyển pending → confirmed bình thường
+        console.log('🏪 ✅ Pickup order: pending → confirmed');
+        
+        const updated = await Bill.findByIdAndUpdate(
+          billId,
+          { 
+            status: 'confirmed',
+            confirmed_at: new Date(),
+            admin_note: req.body.admin_note || 'Đã xác nhận đơn nhận tại cửa hàng'
+          },
+          { new: true, runValidators: true }
+        );
+
+        return res.json({ 
+          success: true,
+          msg: '✅ Đã xác nhận đơn hàng', 
+          data: updated
+        });
+      } else {
+        return res.status(400).json({ 
+          success: false,
+          msg: `❌ Không thể chuyển từ trạng thái "${bill.status}" sang "${status}" cho đơn nhận tại cửa hàng`,
+          data: null,
+          error_code: 'INVALID_PICKUP_TRANSITION'
+        });
+      }
+    } else {
+      return res.status(400).json({ 
+        success: false,
+        msg: '❌ Chỉ áp dụng cho đơn hàng "Nhận tại cửa hàng"',
+        data: null,
+        error_code: 'NOT_PICKUP_ORDER'
+      });
+    }
+
+  } catch (err) {
+    console.error('❌ UpdateBillStatusForPickup error:', err);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Lỗi server: ' + err.message, 
+      data: null 
+    });
+  }
+};
+
 // ✅ Helper function: Validate voucher trước khi sử dụng
 async function validateVoucherForOrder(voucherUserId, orderTotal) {
   try {
@@ -1609,51 +1774,366 @@ module.exports.FailedOrder = async (req, res) => {
     }
 };
 
-//------------------update Fix web admin---------------------
+//------------------update Fix web admin - NOTE: Chỉ thêm API mới cho web admin, không ảnh hưởng mobile/shipper---------------------
 /**
  * GET /bills/admin/kpi
- * Trả về vài KPI nhanh: tổng đơn, đơn hoàn tất, doanh thu hoàn tất, hủy/failed...
+ * ✅ API CHỈ CHO WEB ADMIN - Trả về KPI nhanh cho dashboard
+ * NOTE: API này chỉ dành cho web admin, không ảnh hưởng đến app mobile hay shipper
  */
 module.exports.getAdminKPI = async (req, res) => {
   try {
-    const bills = await Bill.find().select('status total created_at').lean();
-    const done = bills.filter(b => String(b.status).toLowerCase() === 'done');
-    const failed = bills.filter(b => ['failed','cancelled'].includes(String(b.status).toLowerCase()));
-    res.json({
-      success: true,
-      data: {
-        totalOrders: bills.length,
-        completedOrders: done.length,
-        cancelledOrders: failed.length,
-        completedRevenue: done.reduce((s,b)=> s + (Number(b.total)||0), 0),
+    console.log('📊 [WEB ADMIN] Lấy KPI tổng quan');
+    
+    // ✅ Xử lý filter theo ngày tháng từ query params
+    const { startDate, endDate } = req.query;
+    let matchStage = {};
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      matchStage.created_at = {
+        $gte: start,
+        $lte: end
+      };
+      
+      console.log('🔍 [KPI] Filter theo ngày:', { start, end });
+    }
+    
+    // ✅ Lấy dữ liệu với aggregation để tối ưu performance
+    const pipeline = [];
+    
+    // Thêm match stage nếu có filter ngày
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+    
+    pipeline.push({
+      $group: {
+        _id: null,
+        totalOrders: { $sum: 1 },
+        completedOrders: {
+          $sum: { $cond: [{ $eq: ['$status', 'done'] }, 1, 0] }
+        },
+        cancelledOrders: {
+          $sum: { 
+            $cond: [
+              { $in: ['$status', ['cancelled', 'failed']] }, 
+              1, 
+              0
+            ] 
+          }
+        },
+        pendingOrders: {
+          $sum: { 
+            $cond: [
+              { $in: ['$status', ['pending', 'confirmed', 'ready', 'shipping']] }, 
+              1, 
+              0
+            ] 
+          }
+        },
+        completedRevenue: {
+          $sum: {
+            $cond: [
+              { $eq: ['$status', 'done'] },
+              { $ifNull: ['$total', 0] },
+              0
+            ]
+          }
+        },
+        totalRevenue: {
+          $sum: { $ifNull: ['$total', 0] }
+        }
       }
     });
-  } catch (e) {
-    res.status(500).json({ success: false, msg: e.message });
+
+    const kpiData = await Bill.aggregate(pipeline);
+
+    const result = kpiData[0] || {
+      totalOrders: 0,
+      completedOrders: 0,
+      cancelledOrders: 0,
+      pendingOrders: 0,
+      completedRevenue: 0,
+      totalRevenue: 0
+    };
+
+    // ✅ Thêm tỷ lệ hoàn thành
+    result.completionRate = result.totalOrders > 0 
+      ? (result.completedOrders / result.totalOrders) * 100 
+      : 0;
+    
+    // ✅ Thêm giá trị trung bình đơn hàng done
+    result.avgOrderValue = result.completedOrders > 0 
+      ? result.completedRevenue / result.completedOrders 
+      : 0;
+
+    console.log('✅ [WEB ADMIN] KPI data:', result);
+
+    res.json({
+      success: true,
+      message: 'Lấy KPI thành công',
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ [WEB ADMIN] Lỗi getAdminKPI:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server khi lấy KPI',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 };
 
 /**
  * GET /bills/admin/daily-revenue?from=YYYY-MM-DD&to=YYYY-MM-DD
- * Chuẩn hóa revenue theo ngày (chỉ đơn done)
+ * ✅ API CHỈ CHO WEB ADMIN - Chuẩn hóa revenue theo ngày (chỉ đơn done)
+ * NOTE: API này chỉ dành cho web admin, không ảnh hưởng đến app mobile hay shipper
  */
 module.exports.getAdminDailyRevenue = async (req, res) => {
   try {
-    const from = req.query.from ? new Date(req.query.from) : new Date('1970-01-01');
-    const to   = req.query.to   ? new Date(req.query.to)   : new Date();
-    const rows = await Bill.find({
-      created_at: { $gte: from, $lte: to },
-      status: 'done'
-    }).select('total created_at').lean();
+    console.log('📈 [WEB ADMIN] Lấy doanh thu theo ngày với params:', req.query);
+    
+    // ✅ Chuẩn hoá thời gian đầu/cuối ngày
+    const from = req.query.from 
+      ? new Date(new Date(req.query.from).setHours(0, 0, 0, 0))
+      : new Date('1970-01-01');
+    const to = req.query.to 
+      ? new Date(new Date(req.query.to).setHours(23, 59, 59, 999))
+      : new Date();
 
-    const map = {};
-    rows.forEach(b => {
-      const key = new Date(b.created_at).toISOString().slice(0,10);
-      map[key] = (map[key] || 0) + (Number(b.total) || 0);
+    console.log('🗓️ [WEB ADMIN] Khoảng thời gian:', { from, to });
+
+    // ✅ Aggregation để tối ưu performance và group theo ngày
+    const dailyData = await Bill.aggregate([
+      {
+        $match: {
+          created_at: { $gte: from, $lte: to },
+          status: 'done' // Chỉ tính đơn hoàn thành
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$created_at'
+            }
+          },
+          revenue: {
+            $sum: { $ifNull: ['$total', 0] }
+          },
+          orders: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id': 1 } // Sắp xếp theo ngày tăng dần
+      }
+    ]);
+
+    // ✅ Chuyển đổi thành object với key là ngày
+    const revenueMap = {};
+    const ordersMap = {};
+    
+    dailyData.forEach(item => {
+      revenueMap[item._id] = item.revenue;
+      ordersMap[item._id] = item.orders;
     });
-    res.json({ success: true, data: map });
-  } catch (e) {
-    res.status(500).json({ success: false, msg: e.message });
+
+    console.log(`✅ [WEB ADMIN] Lấy doanh thu ${dailyData.length} ngày có dữ liệu`);
+
+    res.json({ 
+      success: true,
+      message: 'Lấy doanh thu theo ngày thành công',
+      data: {
+        revenue: revenueMap,
+        orders: ordersMap,
+        summary: {
+          totalDays: dailyData.length,
+          totalRevenue: dailyData.reduce((sum, item) => sum + item.revenue, 0),
+          totalOrders: dailyData.reduce((sum, item) => sum + item.orders, 0),
+          avgRevenuePerDay: dailyData.length > 0 
+            ? dailyData.reduce((sum, item) => sum + item.revenue, 0) / dailyData.length 
+            : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ [WEB ADMIN] Lỗi getAdminDailyRevenue:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server khi lấy doanh thu theo ngày',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 };
-//-----------------Kết thúc Fix web admin---------------------
+
+/**
+ * GET /bills/admin/top-customers?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&limit=10
+ * ✅ API CHỈ CHỎ WEB ADMIN - Lấy top khách hàng theo doanh thu
+ */
+module.exports.getTopCustomers = async (req, res) => {
+  try {
+    console.log('👥 [WEB ADMIN] Lấy top khách hàng');
+    
+    const { startDate, endDate, limit = 10 } = req.query;
+    let matchStage = { status: 'done' }; // Chỉ tính đơn hoàn thành
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      matchStage.created_at = {
+        $gte: start,
+        $lte: end
+      };
+    }
+    
+    const topCustomers = await Bill.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$user_id',
+          totalSpent: { $sum: { $ifNull: ['$total', 0] } },
+          orderCount: { $sum: 1 },
+          avgOrderValue: { $avg: { $ifNull: ['$total', 0] } }
+        }
+      },
+      { $sort: { totalSpent: -1 } },
+      { $limit: parseInt(limit) },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $lookup: {
+          from: 'accounts',
+          localField: '_id',
+          foreignField: 'user_id',
+          as: 'accountInfo'
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          totalSpent: 1,
+          orderCount: 1,
+          avgOrderValue: 1,
+          name: { $arrayElemAt: ['$userInfo.name', 0] },
+          email: { $arrayElemAt: ['$accountInfo.email', 0] },
+          phone: { $arrayElemAt: ['$userInfo.phone', 0] }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Lấy top khách hàng thành công',
+      data: topCustomers
+    });
+
+  } catch (error) {
+    console.error('❌ [WEB ADMIN] Lỗi getTopCustomers:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server khi lấy top khách hàng',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+};
+
+/**
+ * GET /bills/admin/top-products?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&limit=10
+ * ✅ API CHỈ CHO WEB ADMIN - Lấy sản phẩm bán chạy
+ */
+module.exports.getTopProducts = async (req, res) => {
+  try {
+    console.log('🛍️ [WEB ADMIN] Lấy sản phẩm bán chạy');
+    
+    const { startDate, endDate, limit = 10 } = req.query;
+    let matchStage = { status: 'done' }; // Chỉ tính đơn hoàn thành
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      matchStage.created_at = {
+        $gte: start,
+        $lte: end
+      };
+    }
+    
+    const topProducts = await Bill.aggregate([
+      { $match: matchStage },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.product_id',
+          totalQuantity: { $sum: { $ifNull: ['$items.quantity', 0] } },
+          totalRevenue: { 
+            $sum: { 
+              $multiply: [
+                { $ifNull: ['$items.quantity', 0] },
+                { $ifNull: ['$items.price', 0] }
+              ]
+            }
+          },
+          orderCount: { $sum: 1 },
+          avgPrice: { $avg: { $ifNull: ['$items.price', 0] } }
+        }
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: parseInt(limit) },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'productInfo'
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          totalQuantity: 1,
+          totalRevenue: 1,
+          orderCount: 1,
+          avgPrice: 1,
+          name: { $arrayElemAt: ['$productInfo.name', 0] },
+          image: { $arrayElemAt: ['$productInfo.image', 0] },
+          category: { $arrayElemAt: ['$productInfo.category_id', 0] }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Lấy sản phẩm bán chạy thành công',
+      data: topProducts
+    });
+
+  } catch (error) {
+    console.error('❌ [WEB ADMIN] Lỗi getTopProducts:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server khi lấy sản phẩm bán chạy',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+};
+
+//-----------------Kết thúc Fix web admin - NOTE: Chỉ API mới cho web admin---------------------

@@ -110,6 +110,8 @@ router.delete('/accounts/:id', api_auth, requireRole('admin'), accountCtrl.Delet
 //------------------update Fix web admin---------------------
 router.get('/bills/admin/kpi',           api_auth, requireRole('admin'), billCtrl.getAdminKPI);
 router.get('/bills/admin/daily-revenue', api_auth, requireRole('admin'), billCtrl.getAdminDailyRevenue);
+router.get('/bills/admin/top-customers', api_auth, requireRole('admin'), billCtrl.getTopCustomers);
+router.get('/bills/admin/top-products',  api_auth, requireRole('admin'), billCtrl.getTopProducts);
 //-----------------Kết thúc Fix web admin---------------------
 router.get   ('/bills',        billCtrl.getList);
 //------------------update Fix web admin---------------------
@@ -121,6 +123,11 @@ router.post  ('/bills',        billCtrl.Add);
 router.put   ('/bills/:id',    billCtrl.Edit);
 router.delete('/bills/:id',    billCtrl.Delete);
 router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
+//------------------update Fix pickup order management---------------------
+// 🏪 API mới cho đơn "Nhận tại cửa hàng" - Cho phép admin hoàn thành trực tiếp từ "Đã xác nhận"
+router.get   ('/bills/:id/pickup-check', api_auth, requireRole('admin', 'staff'), billCtrl.CheckPickupOrder);
+router.put   ('/bills/:id/pickup-status', api_auth, requireRole('admin', 'staff'), billCtrl.UpdateBillStatusForPickup);
+//-----------------Kết thúc Fix pickup order management---------------------
 router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
 router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
 router.post  ('/bills/FailedOrder',       billCtrl.FailedOrder);
@@ -296,11 +303,13 @@ router.put('/categories/:id', requireRole('admin'), categoryCtrl.Edit);
 router.delete('/categories/:id', requireRole('admin'), categoryCtrl.Delete);
 
 // ——— CRUD cho Products - ENHANCED ———
+//------------------update Fix Product routes - sửa lỗi tên function---------------------
 // ✅ WEB ADMIN SPECIFIC ROUTES (Đặt trước để tránh conflict)
 router.get('/products/with-sizes', productCtrl.getProductsWithSizes); // 🆕 Web admin endpoint
-router.get('/products/all/with-sizes', productCtrl.getAllProductsWithSizes); // 🆕 Enhanced version
+router.get('/products/all/with-sizes', productCtrl.getProductsWithSizes); // 🔥 FIX: đổi tên function đúng
 router.post('/products/:id/update-stock', productCtrl.updateStock); // 🆕 Web admin endpoint  
 router.post('/products/update-all-stock', productCtrl.updateAllStock); // 🆕 Web admin endpoint
+//-----------------Kết thúc Fix Product routes - sửa lỗi tên function---------------------
 
 // ✅ MOBILE COMPATIBLE ROUTES (Giữ nguyên thứ tự cũ)
 router.get('/products', productCtrl.getList);
