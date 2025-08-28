@@ -120,6 +120,11 @@ router.post  ('/bills',        billCtrl.Add);
 router.put   ('/bills/:id',    billCtrl.Edit);
 router.delete('/bills/:id',    billCtrl.Delete);
 router.put   ('/bills/:id/assign-shipper', billCtrl.AssignShipper);
+//------------------update Fix pickup order management---------------------
+// 🏪 API mới cho đơn "Nhận tại cửa hàng" - Cho phép admin hoàn thành trực tiếp từ "Đã xác nhận"
+router.get   ('/bills/:id/pickup-check', api_auth, requireRole('admin', 'staff'), billCtrl.CheckPickupOrder);
+router.put   ('/bills/:id/pickup-status', api_auth, requireRole('admin', 'staff'), billCtrl.UpdateBillStatusForPickup);
+//-----------------Kết thúc Fix pickup order management---------------------
 router.post  ('/bills/CompleteOrder',      billCtrl.CompleteOrder);
 router.post  ('/bills/CancelOrder',        billCtrl.CancelOrder);
 router.post  ('/bills/cancel-by-customer', billCtrl.CancelOrderByCustomer); // ✅ Khách hàng hủy đơn

@@ -14,6 +14,171 @@ const voucherUserController = require('./api.voucher_user.controller'); // ✅ I
 
 module.exports = Base(Bill);
 
+// 🔥 HELPER FUNCTION: Kiểm tra đơn hàng có phải "Nhận tại cửa hàng" không
+module.exports.CheckPickupOrder = async (req, res) => {
+  try {
+    const billId = req.params.id;
+    
+    const bill = await Bill.findById(billId);
+    if (!bill) {
+      return res.status(404).json({ 
+        success: false,
+        msg: 'Hóa đơn không tồn tại', 
+        data: null 
+      });
+    }
+
+    const currentShippingMethod = bill.shipping_method;
+    const isPickupOrder = currentShippingMethod === 'pickup' || 
+                         currentShippingMethod === 'Nhận tại cửa hàng' ||
+                         currentShippingMethod?.toLowerCase().includes('pickup') ||
+                         currentShippingMethod?.toLowerCase().includes('nhận tại');
+
+    // Xác định next actions cho từng trạng thái
+    let nextActions = [];
+    
+    if (isPickupOrder) {
+      if (bill.status === 'pending') {
+        nextActions = ['confirmed']; // Có thể xác nhận
+      } else if (bill.status === 'confirmed') {
+        nextActions = ['done']; // Có thể hoàn thành trực tiếp (bỏ qua ready)
+      }
+    } else {
+      // Đơn giao hàng bình thường
+      if (bill.status === 'pending') {
+        nextActions = ['confirmed'];
+      } else if (bill.status === 'confirmed') {
+        nextActions = ['ready']; // Phải qua chuẩn bị xong
+      } else if (bill.status === 'ready') {
+        nextActions = ['shipping']; // Chuyển sang giao hàng
+      }
+    }
+
+    res.json({ 
+      success: true,
+      data: {
+        billId: bill._id,
+        currentStatus: bill.status,
+        shippingMethod: currentShippingMethod,
+        isPickupOrder,
+        nextActions,
+        canCompleteDirectly: isPickupOrder && bill.status === 'confirmed'
+      }
+    });
+
+  } catch (err) {
+    console.error('❌ CheckPickupOrder error:', err);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Lỗi server: ' + err.message, 
+      data: null 
+    });
+  }
+};
+
+// 🔥 THÊM FUNCTION MỚI: Cập nhật trạng thái đặc biệt cho đơn "Nhận tại cửa hàng"
+module.exports.UpdateBillStatusForPickup = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const billId = req.params.id;
+
+    console.log('🏪 UpdateBillStatusForPickup called:', {
+      billId: billId.slice(-8),
+      newStatus: status
+    });
+
+    const bill = await Bill.findById(billId);
+    if (!bill) {
+      return res.status(404).json({ 
+        success: false,
+        msg: 'Hóa đơn không tồn tại', 
+        data: null 
+      });
+    }
+
+    // Kiểm tra phương thức giao hàng
+    const currentShippingMethod = bill.shipping_method;
+    const isPickupOrder = currentShippingMethod === 'pickup' || 
+                         currentShippingMethod === 'Nhận tại cửa hàng' ||
+                         currentShippingMethod?.toLowerCase().includes('pickup') ||
+                         currentShippingMethod?.toLowerCase().includes('nhận tại');
+
+    console.log('🏪 Pickup order validation:', {
+      shippingMethod: currentShippingMethod,
+      isPickupOrder,
+      currentStatus: bill.status,
+      newStatus: status
+    });
+
+    // 🔥 XỬ LÝ ĐƂC BIỆT CHO ĐƠN NHẬN TẠI CỬA HÀNG
+    if (isPickupOrder) {
+      if (bill.status === 'confirmed' && status === 'done') {
+        // ✅ Cho phép chuyển trực tiếp từ "Đã xác nhận" → "Hoàn thành" cho đơn nhận tại cửa hàng
+        console.log('🏪 ✅ Pickup order: confirmed → done (complete at store)');
+        
+        const updated = await Bill.findByIdAndUpdate(
+          billId,
+          { 
+            status: 'done',
+            completed_at: new Date(),
+            completion_method: 'pickup_at_store',
+            admin_note: req.body.admin_note || 'Khách đã nhận hàng tại cửa hàng'
+          },
+          { new: true, runValidators: true }
+        );
+
+        return res.json({ 
+          success: true,
+          msg: '✅ Đã hoàn thành đơn nhận tại cửa hàng', 
+          data: updated,
+          pickup_completed: true
+        });
+      } else if (bill.status === 'pending' && status === 'confirmed') {
+        // ✅ Cho phép chuyển pending → confirmed bình thường
+        console.log('🏪 ✅ Pickup order: pending → confirmed');
+        
+        const updated = await Bill.findByIdAndUpdate(
+          billId,
+          { 
+            status: 'confirmed',
+            confirmed_at: new Date(),
+            admin_note: req.body.admin_note || 'Đã xác nhận đơn nhận tại cửa hàng'
+          },
+          { new: true, runValidators: true }
+        );
+
+        return res.json({ 
+          success: true,
+          msg: '✅ Đã xác nhận đơn hàng', 
+          data: updated
+        });
+      } else {
+        return res.status(400).json({ 
+          success: false,
+          msg: `❌ Không thể chuyển từ trạng thái "${bill.status}" sang "${status}" cho đơn nhận tại cửa hàng`,
+          data: null,
+          error_code: 'INVALID_PICKUP_TRANSITION'
+        });
+      }
+    } else {
+      return res.status(400).json({ 
+        success: false,
+        msg: '❌ Chỉ áp dụng cho đơn hàng "Nhận tại cửa hàng"',
+        data: null,
+        error_code: 'NOT_PICKUP_ORDER'
+      });
+    }
+
+  } catch (err) {
+    console.error('❌ UpdateBillStatusForPickup error:', err);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Lỗi server: ' + err.message, 
+      data: null 
+    });
+  }
+};
+
 // ✅ Helper function: Validate voucher trước khi sử dụng
 async function validateVoucherForOrder(voucherUserId, orderTotal) {
   try {
