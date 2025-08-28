@@ -929,6 +929,7 @@ module.exports.CancelOrderByCustomer = async (req, res) => {
       console.log('💰 Khách hàng hủy đơn COD hoặc chưa thanh toán, chuyển sang cancelled');
     }
 
+    const isVNPayPayment = bill.payment_method === 'vnpay' || bill.payment_method === 'VNPAY - Sandbox';
     const updatedBill = await Bill.findByIdAndUpdate(orderId, updateData, { new: true });
 
     // ❌ DISABLED: Không rollback voucher khi khách hàng hủy đơn hàng  
